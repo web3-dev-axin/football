@@ -5,3 +5,4 @@ coverage-ts
 reports
 contracts/cache
 contracts/out
+backups/

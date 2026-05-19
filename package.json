@@ -32,6 +32,7 @@
     "typecheck:indexer": "bun --cwd apps/indexer typecheck",
     "db:migrate": "bun --cwd packages/db migrate",
     "db:seed": "bun --cwd packages/db seed:test",
+    "db:backup": "bun scripts/pg-backup.ts",
     "openapi": "bun --cwd apps/api openapi",
     "test:commercial-matrix": "bun scripts/test-commercial-matrix.ts",
     "test:security": "bun scripts/test-security.ts",

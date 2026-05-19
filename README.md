@@ -166,7 +166,10 @@ bun run deploy:local
 ```bash
 bun run db:migrate
 bun run db:seed
+bun run db:backup
 ```
+
+生产环境除逻辑备份外，还应启用托管数据库自带的自动备份 / PITR；详见 `docs/development.md` 中「数据库备份与恢复」。
 
 ## 测试和验证
 

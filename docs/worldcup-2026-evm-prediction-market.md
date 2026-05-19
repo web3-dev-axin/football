@@ -1798,6 +1798,12 @@ SLO 建议：
 - wallet transaction failure rate。
 - redeem failure rate。
 
+数据与备份：
+
+- Postgres 在生产环境必须启用自动备份（托管服务 PITR / 连续归档）并定义保留周期与跨区域副本。
+- 定期逻辑备份（`pg_dump`）归档到对象存储；仓库提供 `bun run db:backup` 与 `docs/development.md` 中的恢复说明。
+- 定期开展恢复演练，验证备份可还原与迁移流程。
+
 告警：
 
 - live event provider 30 秒无更新。

@@ -572,6 +572,41 @@ packages/odds-ingestion/src/
 - migration 文件放在 `packages/db/migrations`。
 - 所有写入操作必须幂等，尤其是 sync 和 indexer。
 
+### 7.5.1 数据库备份与恢复（生产必备）
+
+商业/预生产 Postgres 必须有多层备份策略，避免因误操作、磁盘故障或勒索软件导致不可逆数据丢失。
+
+**推荐层级：**
+
+1. **托管数据库自动备份**：若使用 RDS、Cloud SQL、Supabase、Neon 等，开启厂商提供的连续归档 / PITR（按时间恢复）与保留周期（通常 ≥ 7 天）。
+2. **逻辑备份（`pg_dump`）**：用作跨环境迁移、人工审计与「按副本」恢复；仓库提供脚本读 `DATABASE_URL` 导出 **custom format** 单文件。
+3. **对象存储归档**：把 `pg_dump` 产物同步到另一区域的 S3/GCS/R2 等，并开启版本控制或 Immutable 桶策略（满足回放与防篡改需求）。
+4. **演练**：每季度至少做一次「从新备份恢复到空实例并跑通 `db:migrate` + 抽检查询」，避免备份链在事故当天才被发现损坏。
+
+**本地 / 自建一键逻辑备份（需本机安装 `pg_dump`，与服务器大版本一致为佳）。实现为 TypeScript：`scripts/pg-backup.ts`（`import.meta.main` 入口）。**
+
+```bash
+# 从仓库根目录；会读取 .env 中的 DATABASE_URL
+bun run db:backup
+```
+
+环境变量（可选，见 `.env.example`）：
+
+- `BACKUP_DIR`：备份文件目录，默认 `<repo>/backups/pg`。
+- `BACKUP_RETENTION_DAYS`：正整数时，删除该目录下超过 N 天的 `polygoal-*.dump`（仅影响本机脚本产物，不替代云上保留策略）。
+
+**恢复到空库（custom format，示例）：**
+
+```bash
+# 目标库必须已创建且 DATABASE_URL 指向它；--clean 会 drop schema 对象，慎用生产覆盖
+pg_restore --clean --if-exists --no-owner --no-acl -d "$DATABASE_URL" ./backups/pg/polygoal-YYYYMMDDTHHMMSSZ.dump
+```
+
+**注意：**
+
+- `pg_dump` 为一致性快照；高写入负载下可与低峰时段或副本对齐。
+- 含机密的连接串与备份文件禁止提交到 git；`backups/` 已在 `.gitignore` 中排除。
+
 ### 7.6 ssh2 使用边界
 
 `ssh2` 只用于可选远程隧道：
