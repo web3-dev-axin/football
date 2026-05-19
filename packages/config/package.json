@@ -1,11 +1,11 @@
 {
-  "name": "@worldcup/config",
+  "name": "@polygoal/config",
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
     "./*": "./src/*.ts"
   },
   "dependencies": {
-    "@worldcup/shared": "workspace:*"
+    "@polygoal/shared": "workspace:*"
   }
 }

@@ -1,13 +1,14 @@
 import { describe, expect, test } from "bun:test";
-import { DEMO_FIXTURE, DEMO_FIXTURE_ID, DEMO_LIVE_WINDOW, countConfirmedGoalsInWindow } from "@worldcup/shared";
+import { DEMO_FIXTURE, DEMO_FIXTURE_ID, DEMO_LIVE_WINDOW, DEMO_MARKET_KEY, countConfirmedGoalsInWindow } from "@polygoal/shared";
 import { InMemoryDb, createDemoState, makeFixtureComparison, makeSnapshot } from "../src/client";
 
 describe("InMemoryDb", () => {
   test("seeds verified demo fixture snapshots", () => {
     const state = createDemoState();
-    expect(state.fixtures[0]?.dataQualityStatus).toBe("verified");
-    expect(state.snapshots.map((snapshot) => snapshot.source).sort()).toEqual(["fifa_official", "sports_data_provider"]);
-    expect(state.comparisons[0]?.criticalMismatchCount).toBe(0);
+    const demoFixture = state.fixtures.find((fixture) => fixture.id === DEMO_FIXTURE_ID);
+    expect(demoFixture?.dataQualityStatus).toBe("verified");
+    expect([...new Set(state.snapshots.map((snapshot) => snapshot.source))].sort()).toEqual(["fifa_official", "sports_data_provider"]);
+    expect(state.comparisons.every((comparison) => comparison.criticalMismatchCount === 0)).toBe(true);
   });
 
   test("blocks live window creation when fixture data has a critical mismatch", () => {
@@ -20,8 +21,8 @@ describe("InMemoryDb", () => {
     const db = new InMemoryDb();
     const liveWindow = db.createLiveWindow({ fixtureId: DEMO_FIXTURE_ID, startMatchSecond: 3780, endMatchSecond: 4380 });
     const market = db.createMarket(liveWindow.id);
-    expect(liveWindow.windowKey).toBe("fixture:demo-2026-001:goal_window:3780:4380");
-    expect(market.outcomes.map((outcome) => outcome.label)).toEqual(["Yes", "No"]);
+    expect(market.marketKey).toBe(DEMO_MARKET_KEY);
+    expect(market.outcomes.map((outcome) => outcome.label)).toEqual(["Brazil", "Draw", "Morocco"]);
   });
 
   test("counts confirmed goals and ignores cancelled goals", () => {
@@ -41,7 +42,7 @@ describe("InMemoryDb", () => {
     db.syncDemoLiveEvents("demo_goal");
     db.compareLiveEvents(DEMO_FIXTURE_ID, 3780, 4380);
     const proposal = db.proposeResult(market.id, "demo://fixture/demo-2026-001/events");
-    expect(proposal.winningOutcome).toBe(0);
+    expect(proposal.winningOutcome).toBe(1);
     expect(proposal.goalCountInWindow).toBe(1);
   });
 
@@ -50,7 +51,7 @@ describe("InMemoryDb", () => {
     const first = db.createLiveWindow({ fixtureId: DEMO_FIXTURE_ID, startMatchSecond: 3780, endMatchSecond: 4380 });
     const second = db.createLiveWindow({ fixtureId: DEMO_FIXTURE_ID, startMatchSecond: 3780, endMatchSecond: 4380 });
     expect(second.id).toBe(first.id);
-    expect(db.listFixtures("scheduled")).toEqual([]);
+    expect(db.listFixtures("live").map((fixture) => fixture.id)).toEqual([DEMO_FIXTURE_ID]);
     expect(db.listLiveWindows("live_trading").length).toBe(1);
     expect(() => db.createLiveWindow({ fixtureId: "missing", startMatchSecond: 0, endMatchSecond: 600 })).toThrow("Fixture not found");
     expect(() => db.createMarket("missing-window")).toThrow("Live window not found");

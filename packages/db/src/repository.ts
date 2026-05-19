@@ -1,5 +1,5 @@
-import type { CommercialFeatureFlags, CommercialMarketDefinition, MarketPause, ProviderHealthCheck, RiskLimit } from "@worldcup/shared";
-import type { Fixture, LiveWindow, Market, ResultProposal } from "@worldcup/shared";
+import type { CommercialFeatureFlags, CommercialMarketDefinition, MarketPause, ProviderHealthCheck, RiskLimit } from "@polygoal/shared";
+import type { Fixture, LiveWindow, Market, ResultProposal } from "@polygoal/shared";
 
 export type PredictionMarketRepository = {
   listFixtures(status?: string): Fixture[] | Promise<Fixture[]>;

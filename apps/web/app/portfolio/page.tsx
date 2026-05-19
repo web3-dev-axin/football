@@ -1,14 +1,19 @@
-import { createDemoDbWithMarket } from "../../lib/demo-data";
+import { PageHero } from "../../components/ui/PageHero";
+import { PortfolioPageClient } from "../../components/portfolio/PortfolioPageClient";
+import { BalanceFaucet } from "../../components/portfolio/BalanceFaucet";
 
 export default function PortfolioPage() {
-  const { market } = createDemoDbWithMarket();
   return (
-    <main className="stack">
-      <h1>Portfolio</h1>
-      <section className="card">
-        <h2>{market.title}</h2>
-        <p>Demo position: 100 Yes shares · potential payout 100 Mock USDC.</p>
-      </section>
+    <main className="section-stack">
+      <PageHero
+        eyebrow="Portfolio"
+        title="Your positions"
+        showMedia={false}
+        aside={<BalanceFaucet />}
+      >
+        Track open positions, redeemable winnings, and refunds in one place.
+      </PageHero>
+      <PortfolioPageClient />
     </main>
   );
 }

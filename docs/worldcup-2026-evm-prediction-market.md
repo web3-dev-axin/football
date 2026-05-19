@@ -2,27 +2,36 @@
 
 ## 1. 项目定位
 
-本项目是一个面向 2026 FIFA World Cup 的商业级 EVM 实时预测市场 DApp。产品体验对标成熟足球竞猜站的实时信息密度、交易速度和视觉完成度，市场机制对标 Polymarket 的事件市场、outcome shares、可交易概率、透明结算和可争议 oracle 流程。
+本项目是一个面向 2026 FIFA World Cup 的商业级 EVM 预测市场 DApp。产品体验对标成熟足球竞猜站的信息密度、交易速度和视觉完成度；市场机制对标 Polymarket 的事件市场、outcome shares、可交易概率、透明结算和可争议 oracle 流程。
 
-文档目标从 MVP 升级为商业可运行版本。系统需要支持本地 Anvil、测试网、预生产和正式生产四套环境；本地仍使用 Mock USDC 验证完整闭环，商业版本需要具备真实抵押资产接入、数据源冗余、风控、运营后台、监控告警、审计、合规开关和精美前端体验。
+文档目标从 MVP 升级为商业可运行版本。系统需要支持四套环境：
 
-本方案按用户指定采用 **方案 C：UMA/CTF 类 Polymarket 架构**，产品主线升级为 **世界杯实时滚球预测市场**：
+- **local**：Anvil + Mock USDC 跑完整闭环。
+- **X Layer Testnet (1952)**：已部署一组 World Cup 2026 小组赛 `match_winner` 市场，作为公开演示环境。详见 `deployments/xlayer-testnet.json` 和 `scripts/deploy-xlayer-*.ts`。
+- **staging**：商业 rehearsal，多签 + 真实 provider + UMA / adapter 排练。
+- **production**：合规链 + multi-provider + UMA / CTF + 多签运营。
 
+商业版本需要具备真实抵押资产接入、数据源冗余、风控、运营后台、监控告警、审计、合规开关和精美前端体验。
+
+本方案按 **方案 C：UMA / CTF 类 Polymarket 架构** 落地。产品主线在 2026-05 调整为 **「比赛胜负优先 + 比分预测次级」**（见 `docs/match-winner-first-requirements.md`）：
+
+- 主市场：`match_winner`（3 选 1：Home / Draw / Away），全场常规时间结算。
+- 次级市场：`exact_score`（常见比分 + `Other score`）。
+- 历史的 goal-window 滚球市场（`goal_window_5m/10m/15m`、`next_goal_team`、`live_goal_window`）作为底层能力保留，合约和测试链路仍然存在；但 UI、首页、Live Markets、市场详情都不再以 goal-window 作为主入口。
 - 用 Conditional Tokens Framework 思路表示 outcome shares。
-- 用短周期 live window 和多种滚球事件市场承载交易。
 - 用乐观预言机流程提交赛果，保留 challenge window、bond、争议升级和人工运营兜底。
-- 本地版可先实现简化 CTF/UMA 适配器，商业版必须保持可升级到 UMA Optimistic Oracle 与 Gnosis CTF。
+- 本地版用简化 CTF/UMA 适配器；商业版必须保持可升级到 UMA Optimistic Oracle 与 Gnosis CTF。
 
 ## 2. 产品目标
 
 ### 2.1 核心目标
 
 - 拉取 2026 世界杯基础赛程、球队、场馆、比赛状态、实时比分和关键事件。
-- 在比赛 live 状态下创建多类滚球市场池。
-- 支持用户用测试网资产或合规环境下的稳定币抵押资产购买和卖出 outcome shares。
-- 每个滚球窗口结束后由数据服务提交窗口结果，经过短挑战期、bond 和争议流程后结算。
+- 为每场比赛创建一对核心商业市场：`match_winner` 与 `exact_score`。
+- 支持用户用测试网资产（local / X Layer Testnet 上的 Mock USDC）或合规环境下的稳定币抵押资产购买和卖出 outcome shares。
+- 比赛结束后由数据服务提交结果，经过挑战期、bond 和争议流程后结算。
 - 用户可赎回获胜 outcome shares 对应的抵押资产。
-- 前端以商业产品标准展示正在进行的比赛、滚球窗口、实时赔率/概率、盘口热度、持仓、结算、风险规则和数据可信度。
+- 前端以商业产品标准展示正在进行的比赛、胜负与比分两个产品 tab、实时赔率 / 概率、盘口偏离、持仓、结算、风险规则和数据可信度，并保持「比赛优先」的信息架构。
 
 ### 2.2 非目标
 
@@ -40,15 +49,17 @@
 
 商业可运行版本必须具备：
 
-- **实时市场矩阵**：未来 5/10/15 分钟是否进球、下一粒进球、下一张牌、下一次角球、半场剩余时间是否进球等可配置 live markets。
+- **市场矩阵**：以 `match_winner` 与 `exact_score` 为主线，覆盖 World Cup 2026 全部小组赛 + 淘汰赛；goal-window 等滚球市场作为底层能力保留，必要时通过 feature flag 重新打开。
 - **数据源冗余**：FIFA 官方数据、至少两个体育数据 provider、链上 oracle、人工运营复核后台。
-- **真实盘口数据**：从专业 odds provider 拉取赛前和滚球盘口，包括 moneyline、total、handicap、goal window、next goal 等可映射盘口，并保留来源、时间戳和水位变化。
+- **真实盘口数据**：从专业 odds provider 拉取赛前与 live 1X2 / correct score 盘口，并保留来源、bookmaker、时间戳和水位变化。
 - **交易体验**：毫秒级前端状态刷新、清晰滑点、预估 payout、交易确认、失败恢复、持仓盈亏、批量 redeem。
 - **流动性体系**：官方初始流动性、LP 仪表盘、库存风险监控、市场深度和费用模型。
 - **风控体系**：比赛事件延迟保护、交易关闭 buffer、异常赔率保护、数据冲突阻断、盘口暂停、单用户限额。
-- **运营后台**：赛程数据审核、市场批量创建、市场暂停、结果提交、challenge 处理、void/refund、数据源对比。
+- **运营后台**：赛程数据审核、市场批量创建、市场暂停、结果提交、challenge 处理、void / refund、数据源对比，所有动作写 audit log。
 - **合规开关**：地域限制、风险提示、真实资产开关、仅测试网模式、受限国家访问阻断。
 - **商业前端**：高完成度视觉系统、响应式布局、暗色主题、赛事氛围、可访问性和移动端优先体验。
+- **公网可访问性**：浏览器统一走 `/api/*` 同源路径（local 由 Next rewrite，VPS 由 nginx 反代），避免 CORS / Chrome Private Network Access 屏蔽。
+- **链上状态可观测**：所有市场事件由 Ponder 索引到独立 `ponder` schema；API 在该 schema 可用时优先返回真链上数据。
 - **生产运维**：监控、告警、日志、审计 trail、SLO、事故响应 runbook。
 
 ## 3. 用户角色
@@ -104,16 +115,17 @@
 
 ### 4.1 浏览和发现市场
 
-1. 用户进入首页。
-2. 首页只突出正在进行的世界杯比赛和可交易的滚球窗口。
-3. 用户进入 Live Markets 页面，按比赛、窗口剩余时间、流动性筛选。
-4. 用户点击某个滚球市场进入市场详情页。
-5. 用户查看当前比分、比赛时间、窗口起止时间、市场规则、当前概率和成交量。
+1. 用户进入首页 `/`。
+2. 首页按日期分组展示 World Cup 2026 赛程；正在进行（`live`）的比赛单独排在最上方；每张比赛卡片标注是否有 `match_winner` / `exact_score` 市场可交易。
+3. 用户点击比赛卡片直达市场详情页 `/markets/{fixtureId}:match_winner`（或访问 `/matches/{fixtureId}` 自动重定向）。
+4. 默认展示 `Match Winner` 面板（3 选 1：Home / Draw / Away）；通过次级 tab 切换到 `Exact Score`（常见比分 + `Other score`）。
+5. 用户在同一屏看到比分、kickoff、窗口、当前概率、provider odds、链上市场偏离、结算规则和实时事件。
 
 成功标准：
 
-- 用户能在 3 次点击内进入任意正在直播比赛的可交易滚球市场。
-- 所有市场都能显示明确状态：待开窗、交易中、窗口关闭、等待事件确认、挑战中、可赎回、已结算。
+- 用户在 1–2 次点击内进入任意比赛的 match_winner 市场。
+- 所有市场都能显示明确状态：scheduled / live_trading / closing_soon / closed / proposed / challenged / redeemable / settled / voided。
+- 不存在让普通用户先理解 goal-window 的入口。
 
 ### 4.2 购买 outcome shares
 
@@ -146,19 +158,19 @@
 
 ### 4.4 赛果提交与乐观结算
 
-1. 每个滚球窗口结束后，数据同步服务从体育数据 API 拉取对应时间段内的事件。
-2. result worker 根据结算规则计算 winning outcome。
-3. OracleResolver 提交 proposed result，包括比分、数据源、时间戳和 outcome index。
-4. 市场进入 challenge window。
-5. 如果无人挑战，任何人可调用 finalize。
-6. 如果有人挑战，市场进入 disputed 状态。
-7. 早期版本由管理员裁决并记录审计日志；商业版本交给 UMA Optimistic Oracle/DVM 或等价争议流程。
-8. 市场 finalized 后，用户 redeem 获胜 shares。
+1. 比赛结束（FT）后，数据同步服务从体育数据 API 拉取最终比分与关键事件。
+2. result worker 根据结算规则计算 winning outcome（`match_winner` 用「常规时间」结果，`exact_score` 用最终比分匹配，未列出比分归入 `Other score`）。
+3. 通过 `POST /admin/results/propose` 调用 `OptimisticResultOracle.proposeResult(...)`，提交 evidence URI、payload hash 与 winning outcome。
+4. 市场进入 challenge window；Ponder 索引到 `ResultProposed` 后把 `result_proposal.status` 置为 `proposed`，API `/settlements?status=proposed` 与前端 `/settlements` 同步更新。
+5. 无人挑战 → 任何人可调用 `finalize(...)`；事件 `ResultFinalized` 被 Ponder 收到后状态变为 `finalized`，API `getMarketStatusOverlay` 把市场状态覆盖为 `redeemable`。
+6. 有人挑战 → 市场进入 `challenged`；早期版本由管理员裁决并写 audit log，商业版本可升级到 UMA Optimistic Oracle / DVM。
+7. void 路径：`POST /admin/markets/:id/void` → `MarketVoided` → Ponder `status = voided` → `/admin/markets/:id/refund` 排队退款。
+8. 市场 finalized 后，用户在 `/portfolio` 点击 redeem。
 
 成功标准：
 
-- 窗口结束后能自动进入待结算队列。
-- 提交结果链上可追溯。
+- 比赛结束后能自动进入待结算队列。
+- 提交结果链上可追溯（Ponder 全量索引 + 事件 hash）。
 - 结算规则可读、可验证、可复现。
 - 错误结果有挑战入口。
 
@@ -178,90 +190,79 @@
 
 ## 5. 市场类型设计
 
-商业版本需要支持可配置的实时滚球市场矩阵。本地第一条端到端路径仍从“未来 10 分钟是否进球”开始，但产品设计不能停留在单一 MVP 市场。所有市场类型必须共享统一的 market metadata、window、oracle payload、challenge 和 redeem 流程。
+商业版本主线是 **`match_winner` + `exact_score`** 两类市场。两者共享统一的 market metadata、close time、oracle payload、challenge 和 redeem 流程。
 
-### 5.1 核心滚球市场：未来 10 分钟是否进球
+### 5.1 主市场：Match Winner（胜负平）
 
 示例题目：
 
-> Brazil vs Morocco, 63:00-73:00 - will either team score a goal?
+> Who will win Brazil vs Morocco?
 
-Outcome：
+Outcomes：
 
-- Yes
-- No
+- `Home`（例：Brazil）
+- `Draw`
+- `Away`（例：Morocco）
+
+`market_key`：`fixture:<fifaMatchId>:match_winner`。
 
 开窗规则：
 
-- 只在比赛状态为 live 时创建。
-- 每场比赛按 10 分钟窗口创建市场，例如 0-10、10-20、20-30。
-- 补时阶段可创建一个独立窗口，例如 90+。
-- 当前窗口开始后开放交易。
-- 窗口结束前 30 秒关闭交易，避免数据延迟套利。
-- 如果窗口创建时比赛已经进入该窗口中段，仍可创建，但必须展示剩余时间和数据延迟风险。
+- 在 fixture 创建时即可创建市场，可以从赛前一直开放到赛末。
+- 交易关闭时间 `closeTime` = `kickoffAtUtc` + `XLAYER_MATCH_WINNER_CLOSE_BUFFER_SECONDS`（默认 105 分钟，覆盖常规时间 + 补时）。具体值见 `packages/shared/src/deployments.ts`。
+- 关闭后禁止 buy / sell，进入 closed waiting result 状态。
 
-结算规则：
+结算规则（默认 policy `full_time_match_winner_excluding_extra_time_and_penalties`）：
 
-- 如果窗口时间内任意一方进球，Yes 获胜。
-- 如果窗口时间内没有进球，No 获胜。
-- 只统计 FIFA 或数据源最终确认的有效进球。
-- VAR 取消进球时，该进球不计入 Yes。
-- 乌龙球仍视为“有进球”，Yes 获胜。
-- 点球进球视为进球，Yes 获胜。
-- 点球大战不纳入常规 live window；如需支持点球大战，必须单独创建 penalty shootout 市场，第一阶段不开放。
+- 以常规时间 90 分钟 + 补时（不含加时和点球大战）为准。
+- Home / Draw / Away 三选一。
+- 如比赛 postponed / abandoned / cancelled 且不重赛 → void + refund。
+- 数据源 mismatch 关键字段（home / away / kickoff）→ 阻断开池。
 
-### 5.2 核心滚球市场：下一粒进球是哪队
+### 5.2 次级市场：Exact Score（比分预测）
 
 示例题目：
 
-> Brazil vs Morocco, live - who scores the next goal?
+> What will the final score be?
 
-Outcome：
+Outcomes（默认 10 个，可按比赛配置调整）：
 
-- Brazil
-- Morocco
-- No goal before full time
+- `0-0`, `1-0`, `0-1`, `1-1`, `2-0`, `0-2`, `2-1`, `1-2`, `2-2`, `Other score`
 
-商业结算规则：
+`market_key`：`fixture:<fifaMatchId>:exact_score`。
 
-- 如果 Team A 在市场关闭前打入下一粒有效进球，Team A outcome 获胜。
-- 如果 Team B 打入下一粒有效进球，Team B outcome 获胜。
-- 如果比赛结束前没有进球，No goal before full time 获胜。
-- VAR 取消进球不计入下一粒进球。
-- 如果市场创建时比分或比赛时间数据源冲突，禁止开池。
+结算规则：
 
-### 5.3 商业滚球市场矩阵
+- 与 `match_winner` 同一时间范围（常规时间 + 补时，不含加时与点球）。
+- 列出的常见比分由 outcome label 完全匹配最终比分。
+- 不在列表的比分一律归入 `Other score`。
+- provider odds 缺失时，前端 OutcomeCard 显示 `No provider odds`；不允许伪造盘口。
 
-商业版本应按风险从低到高逐步开放：
+### 5.3 商业市场矩阵 (路线)
 
-| 市场 | Outcome | 数据要求 | 风险等级 |
+| 阶段 | 市场 | Outcome | 状态 |
 | --- | --- | --- | --- |
-| 未来 5/10/15 分钟是否进球 | Yes/No | live clock + goal event | 中 |
-| 下一粒进球是哪队 | Team A / Team B / No goal | goal event + full time | 中高 |
-| 本半场是否还有进球 | Yes/No | period + goal event | 中 |
-| 下一张牌是哪队 | Team A / Team B / No card | card event | 高 |
-| 下一次角球是哪队 | Team A / Team B / No corner | corner event | 高 |
-| 补时阶段是否进球 | Yes/No | stoppage time event | 高 |
+| P0 | `match_winner` | Home / Draw / Away | 主推，已在 X Layer Testnet 部署 |
+| P1 | `exact_score` | 0-0 / 1-0 / ... / Other score | 接入真实 correct score 盘口后上线 |
+| P2 | `next_goal_team` | Team A / Team B / No goal before FT | 多 outcome 合约支持完成后再开 |
+| P3 | 半场是否还有进球 | Yes / No | 数据延迟保护完成后开 |
+| Legacy | `goal_window_5m/10m/15m` | Yes / No | 合约保留，UI 不再暴露（详见 `docs/match-winner-first-requirements.md`） |
+| 后续 | 角球 / 黄牌 / 球员进球 / 让球 / 大小球 / 冠军 / 出线 | — | 第一阶段不开放 |
 
 开放原则：
 
-- 二元市场先上线，多 outcome 市场后上线。
-- goal market 先上线，card/corner 等高频争议事件后上线。
+- 主推市场必须接入真实盘口数据。
 - 每新增一种 market type，必须新增独立 resolution policy、数据对比规则、前端解释和测试矩阵。
+- Legacy 市场只能由 feature flag (`enableLiveGoalWindow`) 显式打开，且必须在 staging 完整跑过新的 review-fix 循环。
 
 ### 5.4 暂不开放的市场
 
-商业第一阶段暂不开放：
-
-- 赛前单场胜平负。
-- 淘汰赛谁晋级。
-- 球队是否小组出线。
-- 球队是否进入某阶段。
+- 淘汰赛谁晋级 / 是否出线 / 是否进入某阶段。
 - 冠军市场。
 - 让球、大小球、角球、黄牌、球员进球。
 - 串关或组合投注。
 
-这些市场不进入第一阶段 live rolling 主线，但保留在后续商业扩展路线中。
+这些不进入第一阶段商业主线，但保留在 V3+ 扩展路线中。
 
 ## 6. 市场状态机
 
@@ -1182,386 +1183,230 @@ Refund 规则：
 
 ## 12. 前端页面设计
 
-### 12.1 首页
+商业页面采用比赛优先（match-first）信息架构，所有页面共用 `SiteNavigation`、`NavigationProgress`、`WalletProvider`。
+
+### 12.1 首页 `/`
 
 模块：
 
-- 顶部导航：Home / Live / Schedule / Portfolio / Settlement。
-- 钱包连接和网络状态。
-- 2026 世界杯倒计时。
-- 正在进行的比赛。
-- 当前可交易的 10 分钟滚球窗口。
-- 即将关闭的窗口倒计时。
-- 热门 live window 排行榜。
-- 待结算和可赎回提醒。
+- `PageHero`：项目标题、live 数量 + 今日比赛数、主 CTA（进入 live、查看持仓）。
+- `DayJumper`：顶部快速跳转（Live、Today、Tomorrow、按日期）。
+- 钱包连接与网络状态（`WalletPill`）。
+- Live 区：正在进行的比赛单独排在最上方。
+- 按日期分组的赛程，每张 `FixtureRow` 展示队伍、开球时间、场馆、当前比分、是否有 `match_winner` / `exact_score` 市场。
 - 测试网风险提示。
 
-关键指标：
+不再首屏展示：
 
-- Total volume。
-- Live windows。
-- Settled windows。
-- Active traders。
-- Next window close。
+- `Tradeable goal window` / `Live Market Matrix`。
+- `5/10/15-minute goal window` 卡片。
 
-### 12.2 Live Markets 页
+### 12.2 市场详情 `/markets/[marketId]`
 
-功能：
+进入路径：
 
-- 只展示正在进行的比赛。
-- 每场比赛展示当前比分、比赛时间、数据源更新时间。
-- 展示外部真实盘口区间、链上市场概率和两者偏离。
-- 展示当前 10 分钟窗口和下一个窗口。
-- 筛选：比赛、窗口剩余时间、流动性、交易量、是否可交易、盘口偏离、provider 状态。
-- 支持一键进入当前窗口市场。
+- `/markets/fixture:<fixtureId>:match_winner`（默认）。
+- `/markets/fixture:<fixtureId>:exact_score` → 自动重定向回 `match_winner`，并通过 `?market=exact_score` 把 tab 切到比分。
+- `/matches/[fixtureId]` → server redirect 到 `match_winner` 市场。
 
-Live window 卡片状态：
+核心区块（`FixtureMarketView`）：
 
-- Waiting for window。
-- Live trading。
-- Closing soon。
-- Closed waiting result。
-- Result proposed。
-- Challenged。
-- Redeemable。
-- Settled。
+- `FixtureHero`：队伍、kickoff、状态、场馆、数据 freshness。
+- 产品 tab：`Match Winner` / `Exact Score`。
+- `OutcomeCard`：每个 outcome 显示 implied probability、provider odds、偏离 badge。
+- `TradeTicket`：金额输入、expected shares、avg price、max slippage、potential payout、提交按钮。
+- `SettlementRules`：结算政策的可读文本（来自 `RESOLUTION_RULES`）。
+- `MatchEventsList`：实时事件流（goal / VAR / yellow / red / kickoff / FT）。
+- 持仓块（已连接钱包时）。
 
-### 12.3 赛程页
+交易状态机（`TxStatusBadge`）：idle → needs-approval → pending-signature → pending-tx → indexed / failed。
 
-功能：
+### 12.3 持仓页 `/portfolio`
 
-- 按日期展示全部 104 场比赛。
-- 筛选：阶段、小组、球队、状态、是否 live。
-- 卡片展示：队伍、开球时间、场馆、live 状态。
-- 支持占位对阵，例如 Winner Group A vs Runner-up Group B。
-- 赛程页只作为进入 live markets 的入口，不展示赛前交易市场。
+- `BalanceFaucet`：local / X Layer testnet 一键 mint Mock USDC。
+- `PortfolioSummary`：总 PnL、未结算金额、可赎回金额。
+- `PositionGroup`：按 `Live / Awaiting result / Redeemable / Voided / Settled` 分组。
+- `PositionRow`：市场 / outcome / shares / collateral in / 当前估值 / redeem 按钮。
 
-比赛卡片状态：
+数据来源：API 内部 `PonderReader` 优先返回真链上交易；为空才回退 in-memory（防止 demo seed 污染真实数据）。
 
-- Scheduled。
-- Live。
-- Has active live window。
-- Full time。
-- Final。
+### 12.4 结算时间线 `/settlements`
 
-### 12.4 球队页
+`SettlementsClient` 拉 `/settlements`，按 `Proposed / Challenged / Finalized / Voided` 分组。`SettlementRow` 显示：
 
-实时滚球第一阶段中球队页不是核心交易页面，可做轻量版：
+- 市场名 / fixture / outcomes。
+- 提议的获胜 outcome 与证据 URI。
+- challenge deadline 倒计时。
+- 链上 tx hash（点击跳浏览器）。
 
-- 队伍基础信息。
-- 所属小组。
-- 当前/下一场比赛。
-- 如果该队正在比赛，展示 active live windows。
+数据 Ponder 可用时直接来自 `ponder.result_proposal`。
 
-不展示：
+### 12.5 运营控制台 `/operator`
 
-- 冠军 outcome。
-- 小组出线 Yes/No。
-- 晋级阶段市场。
-- 赛前单场市场。
+仅在 `NEXT_PUBLIC_OPERATOR_CONSOLE_ENABLED=true` 时挂载。`OperatorConsole` 覆盖：
 
-### 12.5 市场大厅
+- feature flag 切换。
+- risk limit 管理。
+- provider health 状态 + auto pause。
+- 市场 pause / resume / void / refund。
+- challenge 审批。
+- audit log 查询。
 
-功能：
+任何动作必须写 audit log；非授权 operator 调用返回 403。
 
-- 搜索 live window 市场。
-- 筛选 match、status。
-- 按 volume、liquidity、window close time、probability movement 排序。
-- 收藏比赛。
+### 12.6 比赛 URL alias `/matches/[fixtureId]`
 
-市场卡片展示：
+server redirect 到 `/markets/{fixtureId}:match_winner`，提供更简短的对外链接。
 
-- title。
-- Yes/No probability。
-- external odds range。
-- market vs odds deviation。
-- current score。
-- match clock。
-- window start/end。
-- volume。
-- liquidity。
-- close time。
-- status。
+### 12.7 已废弃的页面
 
-### 12.6 市场详情页
-
-核心区块：
-
-- 市场标题和状态。
-- 当前比分和比赛时间。
-- 窗口起止时间。
-- 数据源更新时间。
-- Yes/No price/probability。
-- 外部真实盘口与 implied probability。
-- 链上市场概率和外部盘口偏离。
-- 买入/卖出组件。
-- 持仓组件。
-- 成交历史。
-- 流动性信息。
-- 结算规则。
-- 预言机状态。
-- evidence 和 data source。
-
-交易组件字段：
-
-- Buy/Sell tab。
-- Yes/No selector。
-- Amount input。
-- Expected shares。
-- Average price。
-- Max slippage。
-- Potential payout。
-- Window closes in。
-- Submit button。
-
-结算组件字段：
-
-- Proposed result: Yes or No。
-- Goals detected in window。
-- Odds snapshot summary。
-- Challenge deadline。
-- Challenge button。
-- Finalized outcome。
-- Redeem button。
-
-### 12.7 持仓页
-
-功能：
-
-- 用户所有 live window 持仓。
-- 按市场状态筛选。
-- 显示 avg entry、current value、potential payout、realized PnL。
-- 批量 redeem。
-
-状态分组：
-
-- Live positions。
-- Closed waiting result。
-- Challenge window。
-- Redeemable。
-- Settled。
-
-### 12.8 结算中心
-
-面向管理员和高级用户。
-
-功能：
-
-- 待提交窗口结果。
-- 已提交等待挑战。
-- 被挑战窗口。
-- 可 finalize 窗口。
-- 已 finalized 窗口。
-- 数据源 payload、goal events 和 evidence。
-
-管理员动作：
-
-- propose result。
-- accept challenge。
-- reject challenge。
-- finalize。
-- void market。
-
-普通用户动作：
-
-- challenge proposed result。
-- 查看证据。
-- redeem。
+- `/live`：已下线（早期 Live Markets 入口）。
+- `/schedule`：合并到首页。
+- `/settlement` 单数：替换为 `/settlements`。
+- `/team/[slug]`：第一阶段不重启，球队页放后续 V3。
 
 ## 13. API 设计
 
-### 13.1 Public REST/GraphQL API
+API base 推荐 `/api` 同源路径（local 由 `apps/web/next.config.ts` rewrite，VPS 由 nginx 反代到 API）；SSR / route handler 通过 `INTERNAL_API_URL` 直接打 loopback。
 
-#### GET /api/teams
-
-参数：
-
-- `q`
-- `group`
-- `confederation`
-- `qualifiedStatus`
-
-返回：
-
-- teams。
-- group。
-- current/live fixture summary。
-
-#### GET /api/fixtures
-
-参数：
-
-- `date`
-- `stage`
-- `group`
-- `team`
-- `status`
-
-返回：
-
-- fixtures。
-- team summaries。
-- venue。
-- active live windows if match is live。
-
-#### GET /api/live-windows
-
-参数：
-
-- `fixture`
-- `status`
-- `closingBefore`
-- `sort`
-
-返回：
-
-- live window metadata。
-- fixture score and match clock。
-- Yes/No outcomes。
-- prices。
-- volume。
-- chain addresses。
-
-#### GET /api/markets
-
-参数：
-
-- `type`
-- `status`
-- `team`
-- `fixture`
-- `sort`
-
-返回：
-
-- market metadata。
-- outcomes。
-- prices。
-- volume。
-- chain addresses。
-
-#### GET /api/markets/:id
-
-返回：
-
-- full market details。
-- fixture/team context。
-- live window start/end。
-- current score and match clock。
-- Yes/No outcomes。
-- resolution policy。
-- oracle state。
-- user position if wallet provided。
-
-#### GET /api/settlements
-
-参数：
-
-- `status`
-- `marketType`
-- `fixture`
-
-返回：
-
-- result proposals。
-- goal events in window。
-- challenge deadline。
-- finalization status。
-
-### 13.2 Admin API
-
-#### POST /api/admin/sync/teams
-
-触发 teams sync。
-
-#### POST /api/admin/sync/rankings
-
-非首发接口，默认禁用。实时滚球交易不需要 rankings sync 驱动市场创建。
-
-#### POST /api/admin/sync/fixtures
-
-触发 fixtures sync。
-
-#### POST /api/admin/markets/create
-
-为 live window 创建链上市场。
-
-#### POST /api/admin/live-windows/create
-
-根据 live fixture 和当前 match clock 创建下一段 10 分钟滚球窗口。
-
-#### POST /api/admin/sync/live-events
-
-同步实时比分、进球和 VAR 取消事件。
-
-#### POST /api/admin/results/propose
-
-提交 live window 结果到 oracle。
-
-#### POST /api/admin/results/finalize
-
-finalize 结果。
-
-## 14. 索引器设计
-
-链上事件必须被索引回数据库。
-
-需要监听：
-
-- `MarketCreated`
-- `ConditionPrepared`
-- `TradeExecuted`
-- `PositionSplit`
-- `PositionMerged`
-- `ResultProposed`
-- `ResultChallenged`
-- `ResultFinalized`
-- `MarketVoided`
-- `Redeemed`
-
-索引原则：
-
-- 从部署 block 开始。
-- 保存 last indexed block。
-- 支持 reorg 回滚。
-- 事件处理幂等。
-- DB 状态不能覆盖链上 finalized state。
-
-## 15. 文件与项目结构建议
-
-建议 monorepo：
+### 13.1 Public REST API
 
 ```text
-worldcup-prediction-market/
+GET  /health
+GET  /teams
+GET  /schedule                       # 全部 fixtures
+GET  /fixtures?status=               # 按状态过滤
+GET  /fixtures/:fixtureId/events
+GET  /data-quality/fixtures/:fixtureId
+GET  /live-windows?status=           # 旧滚球链路保留
+GET  /markets?status=                # 链上市场
+GET  /markets/:marketId              # Ponder 可用时叠加 oracle 状态
+GET  /commercial-markets?fixtureId=&marketType=match_winner|exact_score
+GET  /market-types
+GET  /odds/markets/:marketId
+GET  /odds/fixtures/:fixtureId
+GET  /settlements?status=            # Ponder 可用时直读 ponder.result_proposal
+GET  /portfolio/:walletAddress       # Ponder 优先；为空回退 in-memory
+```
+
+`GET /commercial-markets` 返回每场比赛的 `match_winner` + `exact_score` 定义，包含 outcomes（label / providerOdds / impliedProbabilityBps / lastUpdatedAt / source）、`displayPriority`、`marketCategory` (`core` / `score`)。
+
+`GET /markets/:marketId` 在 Ponder 可用时把 oracle 状态（`proposed / challenged / finalized / voided`）覆盖到默认的 `live_trading`，让 UI 同时反映赛事进程和链上裁决。
+
+`GET /portfolio/:wallet` 真链上交易优先；返回每个 position 的 `sharesRaw`、`collateralInRaw`、`collateralOutRaw`、`redeemedRaw` 与 fixture 上下文。
+
+### 13.2 Admin / Operator API
+
+```text
+# Sync & data quality
+POST /admin/sync/teams
+POST /admin/sync/fixtures
+POST /admin/sync/live-events
+POST /admin/sync/odds
+POST /admin/data-quality/fixtures/compare
+POST /admin/data-quality/fixtures/inject-mismatch   # 仅 demo 环境
+POST /admin/data-quality/live-events/compare
+POST /admin/odds/compare
+
+# 市场创建
+POST /admin/live-windows/create                     # 旧滚球链路保留
+POST /admin/markets/create
+POST /admin/markets/bootstrap-schedule              # 一键为 schedule 批量建市场
+POST /admin/markets/commercial                      # 创建 match_winner / exact_score
+
+# 市场运营
+POST /admin/markets/:marketId/pause
+POST /admin/markets/:marketId/resume
+POST /admin/markets/:marketId/void
+POST /admin/markets/:marketId/refund
+
+# 结算
+POST /admin/results/propose
+POST /admin/results/finalize
+POST /admin/challenges
+POST /admin/challenges/:challengeId/review
+POST /admin/results/seed-demo                       # 仅 demo 环境
+
+# 风控
+POST /admin/risk/limits
+POST /admin/provider-health
+POST /admin/provider-health/auto-pause
+POST /risk/check
+
+# Feature flag & audit
+GET  /admin/feature-flags
+POST /admin/feature-flags/:flag
+GET  /admin/audit-logs
+
+# Demo seed
+POST /admin/portfolio/seed-position
+POST /admin/live/seed-events
+```
+
+### 13.3 文档
+
+- `GET /openapi.json`：OpenAPI 3 spec（`apps/api/src/openapi/spec.ts` 维护）。
+- `GET /docs`：轻量 HTML index，可挂载 `swagger-ui-dist` 静态资源。
+
+## 14. 索引器设计（Ponder 0.16）
+
+链上事件必须被 Ponder 索引到独立 `ponder` schema，API 通过 `PonderReader` 把 search_path 固定到该 schema。
+
+### 14.1 监听合约
+
+- `WorldCupMarketFactory`：固定地址 `deployments/xlayer-testnet.json.infra.marketFactory`。
+- `WorldCupMarket`：factory pattern，从 `MarketCreated.market` 字段动态订阅 clone。
+- `OptimisticResultOracle`：固定地址 `deployments/xlayer-testnet.json.infra.oracle`。
+
+### 14.2 事件清单
+
+- `MarketCreated` → `market` 表。
+- `TradeExecuted` → `trade` 表 + 聚合 `position`。
+- `Redeemed` → `redemption` 表 + 更新 `position`。
+- `ResultProposed | ResultChallenged | ResultFinalized | MarketVoided` → upsert `result_proposal`（按 marketId 单条聚合）。
+
+### 14.3 索引原则
+
+- 从 `PONDER_START_BLOCK`（默认 `30_743_211`，factory 部署 block）开始。
+- 数据库：`DATABASE_URL` 存在用 Postgres，否则 pglite。
+- 事件处理幂等（onConflictDoUpdate）。
+- DB 状态不能覆盖链上 finalized state。
+- 重放：测试网 / 生产改 `PONDER_START_BLOCK` 做窗口回放，不要 drop 表。
+
+### 14.4 API 集成
+
+- API 启动时调用 `PonderReader.create(databaseUrl)`，检测 `ponder.trade` 是否存在。
+- 存在 → `/portfolio`、`/settlements`、`/markets/:id` 自动叠加真链上数据。
+- 不存在 → 回退 in-memory（保留 demo 体验）。
+
+## 15. 文件与项目结构
+
+当前 monorepo（细节见 `docs/development.md` §2）：
+
+```text
+polygoal/
+  apps/
+    api/           Bun + Hono；含 ponder reader
+    indexer/       Ponder 0.16；onchain schema (market / trade / redemption / result_proposal / position)
+    web/           Next.js；match-winner-first IA
+  contracts/       Foundry；MockUSDC / CTF Lite / Factory / Market / Oracle
+  deployments/
+    xlayer-testnet.json    单一 source of truth（infra + 48 场小组赛 match_winner 市场）
+  packages/
+    config/        链 / 合约 / 市场配置
+    db/            单一 migration、in-memory + Postgres facade
+    odds-ingestion/ provider / normalizer / 对比
+    sdk/           api / chain / market quote 封装
+    shared/        types / constants / commercial helpers / deployments helper / WC2026 schedule
+  scripts/         跨包验证 + 部署脚本（X Layer、VPS、demo seed）
   docs/
     worldcup-2026-evm-prediction-market.md
-    resolution-rules.md
+    match-winner-first-requirements.md
+    development.md
+    testing.md
     data-sources.md
-  contracts/
-    src/
-      MockUSDC.sol
-      ConditionalTokensLite.sol
-      WorldCupMarketFactory.sol
-      WorldCupMarket.sol
-      OptimisticResultOracle.sol
-      interfaces/
-    test/
-    script/
-    foundry.toml
-  apps/
-    web/
-      app/
-      components/
-      lib/
-      package.json
-  packages/
-    db/
-      prisma/
-      src/
-    data-ingestion/
-      src/
-    sdk/
-      src/
+    resolution-rules.md
+    deploy-scheme-a-public-frontend-local-api.md
 ```
 
 ## 16. 测试策略
@@ -1816,71 +1661,47 @@ SLO 建议：
 
 ## 21. 版本路线
 
-### 21.1 V0：详细文档与原型
+### 21.1 V0：详细文档与原型（已完成）
 
-交付：
+- 产品方案、数据 schema、合约接口、页面 IA、测试计划。
 
-- 产品方案。
-- 数据 schema。
-- 合约接口设计。
-- 页面信息架构。
-- 测试计划。
+### 21.2 V1：本地闭环（已完成）
 
-### 21.2 V1：本地与测试网闭环
+- MockUSDC / ConditionalTokensLite / WorldCupMarketFactory / WorldCupMarket / OptimisticResultOracle。
+- 基础前端 + 本地 demo + 完整交易到结算流程。
 
-交付：
+### 21.3 V2：X Layer Testnet 公开演示（当前阶段）
 
-- MockUSDC。
-- ConditionalTokensLite。
-- WorldCupMarketFactory。
-- WorldCupMarket。
-- OptimisticResultOracle。
-- 基础前端。
-- 本地 demo 数据。
-- 完整交易到结算流程。
+- 部署 World Cup 2026 48 场小组赛 `match_winner` 市场（`deployments/xlayer-testnet.json`）。
+- Ponder 索引 + API 透明叠加链上状态。
+- match-winner-first 前端 IA 落地（无 goal-window 入口）。
+- VPS 部署脚本（`scripts/deploy-vps-ip-http.sh`）+ 同源 `/api` 反代。
+- 商业 demo 钱包灌入工具（`bun run seed:demo-portfolio`）。
 
-### 21.3 V2：商业 beta
+### 21.4 V3：商业 beta
 
-交付：
+- 接入 ≥ 2 个真实 odds provider（1X2 + correct score）。
+- 全量小组赛 + 淘汰赛赛程 + 多源对比。
+- result worker 自动化。
+- 运营后台 + 风控后台。
+- 精美前端设计系统打磨。
+- staging rehearsal + 三轮 review-fix。
 
-- 多 provider 数据源。
-- 全量 104 场赛程同步。
-- 多源数据对比。
-- live event sync。
-- result worker。
-- indexer。
-- settlement center。
-- 运营后台。
-- 风控后台。
-- 精美前端设计系统。
-
-### 21.4 V3：商业 production readiness
-
-交付：
+### 21.5 V4：商业 production readiness
 
 - Gnosis CTF 兼容。
 - UMA Optimistic Oracle adapter。
-- 更完善 challenge/bond。
+- 更完善 challenge / bond。
 - 订单簿或混合撮合。
 - LP 激励。
-- 监控告警。
-- 审计。
-- 合规开关。
-- 灰度发布。
+- 监控告警 + 审计。
+- 合规开关 + 灰度发布。
 
-### 21.5 V4：正式商业运营
+### 21.6 V5：正式商业运营
 
-交付：
-
-- 合规评估。
-- 地域限制。
-- 风险披露。
-- 审计。
-- 监控和告警。
-- 数据源冗余。
-- 真实资产策略。
-- 商业运营报表。
-- 用户增长和活动配置。
+- 合规评估、地域限制、风险披露、审计。
+- 监控告警、数据源冗余、真实资产策略。
+- 商业运营报表、用户增长 / 活动配置。
 
 ## 22. 关键决策
 
@@ -1905,31 +1726,33 @@ SLO 建议：
 
 完整去中心化 oracle 集成需要更多时间和成本。早期版本允许管理员处理 disputed 状态，但商业版本必须提供审计 trail、角色权限、操作延迟、公开 evidence 和 UMA 升级路径，避免黑箱裁决。
 
-### 22.3 为什么从实时滚球切入
+### 22.3 为什么从胜负 + 比分切入
 
-实时滚球是世界杯期间交易频率最高、用户感知最强的场景。第一条端到端路径从一个二元 live window 市场开始：
+最初的 V1 用 goal-window 验证短周期市场闭环（实时数据 / 短窗口 / 快速关闭 / 乐观结算 / 赎回），但实际用户研究发现普通球迷的第一反应是「谁会赢 / 最终比分多少」，而不是「未来 X 分钟是否进球」。`docs/match-winner-first-requirements.md` 把产品入口从 goal-window 切换到：
 
-- 未来 10 分钟是否进球。
+- 主：`match_winner`，3 选 1，整场常规时间结算。
+- 次：`exact_score`，常见比分 + `Other score`。
 
-这个范围能验证实时数据、短周期市场、快速关闭、乐观结算和赎回闭环。商业版本再逐步扩展到下一粒进球、半场剩余时间是否进球、角球、牌等市场。
+goal-window 合约 / 测试链路保留为底层能力，可由 feature flag 显式开启。商业版本会按 §5.3 路线逐步加入 next goal、半场剩余进球等市场。
 
 ## 23. 商业发布完成定义
 
 商业发布需要满足：
 
 - 可以导入、对比和审核 2026 世界杯球队、104 场赛程、场馆、开球时间和 live events。
-- 至少接入两个第三方体育数据 provider，并以 FIFA 官方数据作为校验基准。
-- 可以展示正在进行的比赛、多个当前 live windows、市场深度、数据可信度和持仓。
-- 可以创建多类 live rolling market，至少包括未来 5/10/15 分钟是否进球和下一粒进球是哪队。
+- 至少接入两个第三方体育数据 provider + 真实 1X2 / correct score 盘口 provider。
+- 可以展示正在进行的比赛、可交易的 `match_winner` / `exact_score`、市场深度、数据可信度和持仓。
+- 可以创建商业市场（match_winner 已部署到 X Layer Testnet 的 48 场小组赛；exact_score 接入真实盘口后开放）。
 - 用户可以用环境允许的抵押资产买入、卖出、赎回 outcome shares。
-- 市场可以按窗口规则自动关闭，异常时可自动暂停。
-- result worker、oracle 或管理员可以提交窗口结果，并有完整 evidence。
+- 市场可以按 close time 规则自动关闭，异常时可自动暂停。
+- result worker、oracle 或管理员可以提交结果，并有完整 evidence。
 - challenge window 生效。
 - 可以 finalize 市场。
 - 获胜用户可以 redeem。
-- 前端能展示市场状态、持仓状态、PnL、数据质量和结算证据。
-- 运营后台能处理数据审核、市场暂停、争议、void/refund。
+- 前端能展示市场状态、持仓状态、PnL、数据质量和结算证据，并保持比赛优先信息架构。
+- 运营后台能处理数据审核、市场暂停、争议、void / refund，所有动作进审计日志。
 - 监控、告警、审计日志和事故响应 runbook 可用。
+- Ponder 索引器持续运行，API 在 `ponder` schema 存在时直接返回真链上数据。
 - 合约、后端、前端覆盖率均达到 95%。
 - 至少完成三轮 review-fix，且全量测试通过。
 
@@ -1937,16 +1760,16 @@ SLO 建议：
 
 建议按以下顺序实现：
 
-1. 合约接口和状态机测试。
-2. MockUSDC + ConditionalTokensLite。
-3. MarketFactory + Market。
-4. OptimisticResultOracle。
-5. Demo live fixture、live window 和 goal event seed。
-6. 实时事件同步 adapter 接口。
-7. 前端首页、Live Markets、市场页。
-8. 交易和持仓。
-9. 结算中心。
-10. 完整端到端 demo。
+1. 合约接口和状态机测试（保持向后兼容旧 goal-window 合约）。
+2. 部署 X Layer infra + 批量 match_winner 市场（`bun run deploy:xlayer:*`）。
+3. Ponder 索引器 schema + 事件处理器 + API `PonderReader` 集成。
+4. 前端 match-winner-first IA：首页 + 市场详情 + 持仓 + 结算时间线。
+5. 商业 `exact_score` 接入真实盘口 + outcome label 归一化。
+6. 真实 sports / odds provider 接入 + 多源数据对比。
+7. 运营后台与风控自动化（pause / resume / void / refund / auto-pause）。
+8. UMA / CTF 升级路径评估。
+9. 监控、告警、CI / CD、合规开关。
+10. 商业 staging rehearsal + 三轮 review-fix。
 
 ## 25. 术语表
 

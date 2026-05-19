@@ -19,34 +19,34 @@
     "noEmit": true,
     "baseUrl": ".",
     "paths": {
-      "@worldcup/shared": [
+      "@polygoal/shared": [
         "packages/shared/src/index.ts"
       ],
-      "@worldcup/shared/*": [
+      "@polygoal/shared/*": [
         "packages/shared/src/*"
       ],
-      "@worldcup/config": [
+      "@polygoal/config": [
         "packages/config/src/index.ts"
       ],
-      "@worldcup/config/*": [
+      "@polygoal/config/*": [
         "packages/config/src/*"
       ],
-      "@worldcup/db": [
+      "@polygoal/db": [
         "packages/db/src/index.ts"
       ],
-      "@worldcup/db/*": [
+      "@polygoal/db/*": [
         "packages/db/src/*"
       ],
-      "@worldcup/sdk": [
+      "@polygoal/sdk": [
         "packages/sdk/src/index.ts"
       ],
-      "@worldcup/sdk/*": [
+      "@polygoal/sdk/*": [
         "packages/sdk/src/*"
       ],
-      "@worldcup/odds-ingestion": [
+      "@polygoal/odds-ingestion": [
         "packages/odds-ingestion/src/index.ts"
       ],
-      "@worldcup/odds-ingestion/*": [
+      "@polygoal/odds-ingestion/*": [
         "packages/odds-ingestion/src/*"
       ]
     },

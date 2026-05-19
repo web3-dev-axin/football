@@ -1,4 +1,4 @@
-import { CHALLENGE_WINDOW_SECONDS, LIVE_WINDOW_CLOSE_BUFFER_SECONDS, LIVE_WINDOW_SECONDS } from "@worldcup/shared";
+import { CHALLENGE_WINDOW_SECONDS, LIVE_WINDOW_CLOSE_BUFFER_SECONDS, LIVE_WINDOW_SECONDS } from "@polygoal/shared";
 
 export const liveGoalMarketConfig = {
   windowSeconds: Number(process.env.LIVE_WINDOW_SECONDS ?? LIVE_WINDOW_SECONDS),

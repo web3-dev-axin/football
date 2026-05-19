@@ -5,7 +5,7 @@ import { evaluateOrderRisk } from "../services/risk-service";
 import { providerHealthRequiresPause } from "../services/provider-health-service";
 import { listCommercialMarketTypes } from "../services/market-type-service";
 import { listAuditLogs } from "../services/audit-service";
-import type { CommercialFeatureFlags, CommercialMarketType, RiskLimitScope, ProviderHealthStatus } from "@worldcup/shared";
+import type { CommercialFeatureFlags, CommercialMarketType, RiskLimitScope, ProviderHealthStatus } from "@polygoal/shared";
 
 export function registerCommercialRoutes(app: Hono, ctx: AppContext): void {
   app.get("/market-types", (c) => c.json({ marketTypes: listCommercialMarketTypes() }));
@@ -41,7 +41,7 @@ export function registerCommercialRoutes(app: Hono, ctx: AppContext): void {
     return c.json({ decision: evaluateOrderRisk({ userExposureRaw: body.userExposureRaw, marketVolumeRaw: body.marketVolumeRaw, orderAmountRaw: body.orderAmountRaw, limit }) });
   });
 
-  app.post("/admin/markets/commercial-window", async (c) => {
+  app.post("/admin/markets/commercial", async (c) => {
     const body = await c.req.json<{ fixtureId: string; marketType: CommercialMarketType; startMatchSecond: number; endMatchSecond?: number }>();
     return c.json({ commercialMarket: await ctx.db.createCommercialLiveWindow(body) });
   });
@@ -88,8 +88,21 @@ export function registerCommercialRoutes(app: Hono, ctx: AppContext): void {
 
   app.get("/portfolio/:walletAddress", async (c) => {
     const walletAddress = c.req.param("walletAddress") as `0x${string}`;
+    // Prefer the Ponder indexer (real on-chain trades) when it has data for
+    // this wallet. Only fall through to the in-memory / demo seed data when
+    // the indexer is unavailable or genuinely has nothing for this address,
+    // so that stale `/admin/portfolio/seed-position` seeds don't bloat real
+    // portfolios.
+    if (ctx.ponder) {
+      const onchain = await ctx.ponder.listTradesForWallet(walletAddress);
+      if (onchain.length > 0) {
+        return c.json({ positions: onchain, summary: { walletAddress, positionCount: onchain.length } });
+      }
+    }
     await ctx.db.listMarkets();
-    const positions = ctx.db.state.trades.filter((trade) => trade.walletAddress.toLowerCase() === walletAddress.toLowerCase());
+    const positions = ctx.db.state.trades.filter(
+      (trade) => trade.walletAddress.toLowerCase() === walletAddress.toLowerCase(),
+    );
     return c.json({ positions, summary: { walletAddress, positionCount: positions.length } });
   });
 }

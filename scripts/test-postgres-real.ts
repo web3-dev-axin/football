@@ -1,5 +1,5 @@
 import { mkdir } from "node:fs/promises";
-import { runPostgresRealFlow } from "@worldcup/db";
+import { runPostgresRealFlow } from "@polygoal/db";
 
 const databaseUrl = process.env.DATABASE_URL;
 

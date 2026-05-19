@@ -6,7 +6,7 @@ describe("real Postgres flow", () => {
   test("only allows reset for explicitly test-suffixed database names", async () => {
     const { assertResetIsSafe } = await import("../src/postgres-flow");
 
-    expect(() => assertResetIsSafe("postgres://localhost:5432/worldcup_prediction_market_test")).not.toThrow();
+    expect(() => assertResetIsSafe("postgres://localhost:5432/polygoal_test")).not.toThrow();
     expect(() => assertResetIsSafe("postgres://localhost:5432/latest")).toThrow("Refusing to reset non-test database");
     expect(() => assertResetIsSafe("postgres://localhost:5432/contest")).toThrow("Refusing to reset non-test database");
     expect(() => assertResetIsSafe("postgres://localhost:5432/prod_test_backup")).toThrow("Refusing to reset non-test database");

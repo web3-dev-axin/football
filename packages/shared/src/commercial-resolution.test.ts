@@ -1,31 +1,15 @@
 import { describe, expect, test } from "bun:test";
-import { resolveCommercialMarketOutcome, type MatchEvent } from "./index";
-
-const goal = (id: string, team: string, second: number, cancelled = false): MatchEvent => ({
-  id,
-  fixtureId: "fixture-1",
-  providerEventId: id,
-  eventType: cancelled ? "goal_cancelled" : "goal",
-  team,
-  matchMinute: Math.floor(second / 60),
-  matchSecond: second,
-  isConfirmed: !cancelled,
-  isCancelled: cancelled,
-  source: "fifa_official",
-});
+import { resolveCommercialMarketOutcome } from "./index";
 
 describe("commercial market resolution", () => {
-  test("resolves goal windows using configured duration", () => {
-    expect(resolveCommercialMarketOutcome({ marketType: "goal_window_5m", homeTeam: "Brazil", awayTeam: "Morocco", startMatchSecond: 3780, endMatchSecond: 4080, events: [goal("g1", "Brazil", 3900)] })).toEqual({ winningOutcome: 0, reason: "goal_in_window" });
-    expect(resolveCommercialMarketOutcome({ marketType: "goal_window_10m", homeTeam: "Brazil", awayTeam: "Morocco", startMatchSecond: 3780, endMatchSecond: 4380, events: [goal("g2", "Brazil", 4500)] })).toEqual({ winningOutcome: 1, reason: "no_goal_in_window" });
+  test("resolves match winner from full-time score", () => {
+    expect(resolveCommercialMarketOutcome({ marketType: "match_winner", homeTeam: "Brazil", awayTeam: "Morocco", startMatchSecond: 0, endMatchSecond: 5400, events: [], homeScore: 2, awayScore: 1 })).toEqual({ winningOutcome: 0, reason: "match_winner_home" });
+    expect(resolveCommercialMarketOutcome({ marketType: "match_winner", homeTeam: "Brazil", awayTeam: "Morocco", startMatchSecond: 0, endMatchSecond: 5400, events: [], homeScore: 1, awayScore: 1 })).toEqual({ winningOutcome: 1, reason: "match_winner_draw" });
+    expect(resolveCommercialMarketOutcome({ marketType: "match_winner", homeTeam: "Brazil", awayTeam: "Morocco", startMatchSecond: 0, endMatchSecond: 5400, events: [], homeScore: 0, awayScore: 1 })).toEqual({ winningOutcome: 2, reason: "match_winner_away" });
   });
 
-  test("rejects unsupported commercial resolution types", () => {
-    expect(() => resolveCommercialMarketOutcome({ marketType: "next_card_team", homeTeam: "Brazil", awayTeam: "Morocco", startMatchSecond: 3780, endMatchSecond: 5400, events: [] })).toThrow("Resolution is not enabled");
-  });
-
-  test("resolves next goal team and ignores cancelled goals", () => {
-    expect(resolveCommercialMarketOutcome({ marketType: "next_goal_team", homeTeam: "Brazil", awayTeam: "Morocco", startMatchSecond: 3780, endMatchSecond: 5400, events: [goal("cancelled", "Brazil", 3840, true), goal("away", "Morocco", 3900)] })).toEqual({ winningOutcome: 1, reason: "next_goal_away" });
-    expect(resolveCommercialMarketOutcome({ marketType: "next_goal_team", homeTeam: "Brazil", awayTeam: "Morocco", startMatchSecond: 3780, endMatchSecond: 5400, events: [] })).toEqual({ winningOutcome: 2, reason: "no_goal_before_full_time" });
+  test("resolves exact score and falls back to other score", () => {
+    expect(resolveCommercialMarketOutcome({ marketType: "exact_score", homeTeam: "Brazil", awayTeam: "Morocco", startMatchSecond: 0, endMatchSecond: 5400, events: [], homeScore: 2, awayScore: 1 })).toEqual({ winningOutcome: 6, reason: "exact_score" });
+    expect(resolveCommercialMarketOutcome({ marketType: "exact_score", homeTeam: "Brazil", awayTeam: "Morocco", startMatchSecond: 0, endMatchSecond: 5400, events: [], homeScore: 4, awayScore: 3 })).toEqual({ winningOutcome: 9, reason: "other_score" });
   });
 });

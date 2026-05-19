@@ -1,5 +1,5 @@
 import { mkdirSync, writeFileSync } from "node:fs";
-import { InMemoryDb } from "@worldcup/db";
+import { InMemoryDb } from "@polygoal/db";
 
 const db = new InMemoryDb();
 const report = {

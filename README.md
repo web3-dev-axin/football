@@ -1,36 +1,45 @@
-# World Cup Prediction Market
+# polygoal
 
-2026 世界杯 EVM 实时滚球预测市场。项目以 Polymarket/UMA/CTF 风格为长期架构方向，当前实现覆盖本地 Anvil、Mock USDC、简化条件代币、乐观结算、API、索引器、Web 前端和测试脚本，目标是验证一条完整的 live window 交易到赎回闭环。
+2026 世界杯 EVM 预测市场。当前主线是「比赛胜负 + 比分」两类商业市场（`match_winner` / `exact_score`），架构对标 Polymarket / UMA / CTF：链上 binary（match_winner 为 3 选 1）outcome shares、乐观结算预言机、Ponder 索引器、Bun + Hono API 和 Next.js 前端。
 
-> 当前版本仍是测试网/本地验证项目。Mock USDC 没有真实价值，页面展示概率不是博彩建议，结算以市场规则和最终 oracle 结果为准。
+本仓库同时支持三套运行形态：
+
+- 本地 Anvil + Mock USDC，跑完整端到端。
+- 远端 X Layer Testnet（chain id `1952`），已部署一组 World Cup 2026 小组赛 `match_winner` 市场（地址见 `deployments/xlayer-testnet.json`）。
+- VPS 公网前端 + 本地 / VPS 同机 API 的「方案 A」部署，浏览器统一走 `/api/*` 同源路径，由 nginx 反代到本地 API。
+
+> 当前仍是测试网/演示版本。Mock USDC 没有真实价值，展示概率不是博彩建议，结算以市场规则和最终 oracle 结果为准。历史的 goal-window 滚球市场已不再作为用户可见入口（见 `docs/match-winner-first-requirements.md`），相关合约和测试代码作为底层基础设施保留。
 
 ## 架构总览
 
 ```mermaid
 flowchart LR
-  user[User Wallet] --> web[Next Web App]
-  operator[Operator] --> web
-  web --> api[Hono API]
-  web --> chain[EVM Contracts]
-  api --> db[(Postgres or InMemory DB)]
+  browser[Browser / Mobile] -->|same-origin /api| nginx[Nginx on VPS]
+  nginx --> web[Next.js Web]
+  nginx --> api[Bun + Hono API]
+  web -->|SSR via INTERNAL_API_URL| api
+  user[User Wallet] -->|viem RPC| chain[X Layer / Anvil EVM]
+  web -->|viem RPC| chain
+  api --> db[(Postgres or in-memory store)]
+  api --> ponderDb[(Ponder schema)]
   api --> odds[Odds Ingestion]
-  api --> chain
   indexer[Ponder Indexer] --> chain
-  indexer --> db
-  chain --> contracts[MockUSDC + CTF Lite + Market + Oracle]
+  indexer --> ponderDb
+  chain --> contracts[MockUSDC + CTF Lite + Factory + Market + Oracle]
 ```
 
 核心模块：
 
-- `apps/web`：Next.js 前端，展示首页、Live Markets、市场详情、持仓、结算中心、运营台，并支持 H5 响应式布局。
-- `apps/api`：Bun + Hono API，提供 public/admin/commercial routes、OpenAPI 文档、市场和结算服务。
-- `apps/indexer`：Ponder 索引器，监听链上市场、交易、结算事件并写回数据库状态。
-- `contracts`：Foundry 合约包，包含 `MockUSDC`、`ConditionalTokensLite`、`WorldCupMarketFactory`、`WorldCupMarket`、`OptimisticResultOracle`。
-- `packages/db`：迁移、数据库 facade、Postgres/InMemory repository 和 seed 数据。
-- `packages/shared`：共享类型、常量、校验、商业市场与结算 helper。
+- `apps/web`：Next.js 前端，比赛优先的信息架构。页面：首页（赛程 + Live）、`/markets/[marketId]`、`/matches/[fixtureId]`（重定向到 `match_winner`）、`/portfolio`、`/settlements`、`/operator`。UI 基于 React 19 + Tailwind v4 + HeroUI v3（`@heroui/react`）：所有卡片型容器统一使用 `<Card>`，状态徽标使用 `<Chip>`，主题色 token（`--accent` / `--success` / `--radius` 等）在 `app/globals.css` 内被覆盖为品牌绿 `#05b34f`。
+- `apps/api`：Bun + Hono API，提供 public / admin / commercial 路由、OpenAPI 文档、市场服务，以及 `services/ponder-reader.ts` 读取 Ponder 索引产生的 `trade / market / result_proposal` 表。
+- `apps/indexer`：Ponder 0.16，配置见 `apps/indexer/ponder.config.ts`（默认链：X Layer Testnet，factory / oracle 地址来自 `deployments/xlayer-testnet.json`）。事件处理器 `src/index.ts`，schema `ponder.schema.ts`。旧的事件处理器保留在 `legacy/` 仅供参考。
+- `contracts`：Foundry 合约（`MockUSDC` / `ConditionalTokensLite` / `WorldCupMarketFactory` / `WorldCupMarket` / `OptimisticResultOracle`）。
+- `packages/db`：单一 migration `001_mvp_schema.sql`、Postgres / InMemory facade、seed。
+- `packages/shared`：类型、常量、商业市场 helper，新增 `deployments.ts`、`worldcup-2026-schedule.ts`、`getXLayerMarketDeployment(...)`。
 - `packages/sdk`：API client、chain client、market quote helper。
-- `packages/odds-ingestion`：demo odds provider、odds normalizer 和 provider odds 对比逻辑。
-- `packages/config`：chain、contract、market 配置。
+- `packages/odds-ingestion`：odds provider、normalizer、对比逻辑。
+- `packages/config`：链 / 合约 / 市场配置。
+- `scripts/`：跨包脚本，新增 `deploy-xlayer-infra.ts` / `deploy-xlayer-markets.ts` / `deploy-vps-ip-http.sh` / `seed-demo-portfolio.ts`。
 
 ## 主流程
 
@@ -39,68 +48,88 @@ flowchart LR
 ```mermaid
 sequenceDiagram
   participant User
-  participant Web
-  participant API
-  participant DB
+  participant Web as Next.js
+  participant API as Hono API
+  participant DB as DB / Ponder
 
-  User->>Web: Open home or live page
-  Web->>API: Fetch fixtures, live windows, markets
-  API->>DB: Read demo or persisted market state
-  DB-->>API: Fixture, market, odds, settlement state
-  API-->>Web: Aggregated market data
-  Web-->>User: Show live match and active market matrix
+  User->>Web: 打开首页
+  Web->>API: GET /schedule + /commercial-markets
+  API->>DB: 读取赛程 + 商业市场定义
+  DB-->>API: fixtures + match_winner / exact_score outcomes + odds 摘要
+  API-->>Web: 数据集合（含 live 标记和市场可用性）
+  Web-->>User: 按日期分组的卡片 + Live 区
+  User->>Web: 点击进入 /markets/{fixtureId}:match_winner
+  Web->>API: GET /markets/:id
+  API-->>Web: market detail + 当前比分 + provider odds + oracle 状态
 ```
 
-用户从首页、赛程页或 Live Markets 进入市场详情，查看比赛时间、比分、窗口起止、Yes/No outcome、数据质量、外部 odds 偏离和 oracle 状态。
+用户路径：
 
-### 2. 买入和卖出 outcome shares
+- 首页只展示「比赛」，每场比赛卡片标注是否有 `match_winner` / `exact_score`。
+- 进入市场详情页默认展示 `Match Winner` 面板（3 选 1：Home / Draw / Away）。`Exact Score` 作为次级 tab。
+- 直接访问 `/matches/[fixtureId]` 自动重定向到 `match_winner` 市场。
+
+### 2. 买卖 outcome shares
 
 ```mermaid
 sequenceDiagram
   participant User
   participant Web
   participant SDK
-  participant Market
-  participant CTF
-  participant USDC
+  participant Market as WorldCupMarket
+  participant CTF as ConditionalTokensLite
+  participant USDC as MockUSDC
 
-  User->>Web: Enter trade amount
-  Web->>SDK: Quote buy or sell
-  SDK-->>Web: Shares, price, payout, slippage
-  User->>USDC: Approve collateral
-  User->>Market: Buy or sell outcome
-  Market->>USDC: Transfer collateral
-  Market->>CTF: Split or merge outcome position
-  Market-->>User: Trade receipt
+  User->>Web: 输入 collateral 数量并选 outcome
+  Web->>SDK: quoteBuy / quoteSell
+  SDK-->>Web: shares / 价格 / 滑点 / disabled reason
+  User->>USDC: approve(market, amount)
+  User->>Market: buy / sell(outcomeIndex, amount, minOut)
+  Market->>USDC: transferFrom
+  Market->>CTF: splitPosition / mergePositions
+  Market-->>User: TradeExecuted 事件
+  Note over Web: Ponder 索引 TradeExecuted → trade / position 表
 ```
 
-前端展示预估 shares、平均价格、潜在 payout、滑点和禁用原因。当前本地路径使用 Mock USDC，链上金额和 shares 使用 raw bigint/string 表示。
+前端展示预估 shares、平均价格、潜在 payout、滑点和禁用原因。链上金额一律使用 raw bigint / string。
 
-### 3. 结果提交、挑战和结算
+### 3. 结果提交、挑战与结算
 
 ```mermaid
 sequenceDiagram
-  participant Worker
+  participant Operator
   participant API
-  participant Oracle
-  participant Market
+  participant Oracle as OptimisticResultOracle
+  participant Indexer as Ponder
+  participant Market as WorldCupMarket
   participant User
 
-  Worker->>API: Sync live events and calculate result
-  API->>Oracle: Propose result with evidence
-  Oracle-->>Market: Mark result proposed
-  Oracle->>Oracle: Wait challenge window
-  Oracle->>Market: Finalize winning outcome
-  User->>Market: Redeem winning shares
+  Operator->>API: POST /admin/results/propose
+  API->>Oracle: proposeResult(marketId, payload)
+  Oracle-->>Indexer: ResultProposed
+  Indexer->>Indexer: 写入 result_proposal 表 (status=proposed)
+  Note over Oracle: 挑战窗口
+  alt 无挑战
+    Operator->>Oracle: finalize(marketId)
+    Oracle-->>Market: writePayout
+    Oracle-->>Indexer: ResultFinalized (status=finalized)
+  else 有挑战
+    User->>Oracle: challenge(reason, evidenceUri)
+    Oracle-->>Indexer: ResultChallenged (status=challenged)
+    Operator->>API: 人工裁决 / void
+  end
+  User->>Market: redeem()
+  Market->>USDC: transfer payout
+  Market-->>Indexer: Redeemed → redemption / position 表
 ```
 
-窗口关闭后，数据服务根据确认事件计算 winning outcome，并提交 evidence。challenge window 内可挑战；无人挑战或争议处理完成后 finalize，获胜 shares 可赎回。
+API 的 `/portfolio/:wallet` 和 `/settlements` 在 Ponder schema 可用时直接读 indexer 表；不可用时回退到内存 / Postgres facade，避免演示数据污染真实链上数据。
 
-### 4. 运营和风控
+### 4. 运营与风控
 
-运营台负责 feature flags、risk limits、provider health、market pause/resume、void/refund、challenge review 和 audit logs。数据源延迟、盘口偏离、fixture mismatch 等异常会触发 review 或暂停逻辑。
+运营台 `/operator` 在 `NEXT_PUBLIC_OPERATOR_CONSOLE_ENABLED=true` 时挂载。覆盖：feature flag、risk limit、provider health（含 auto-pause）、市场暂停 / 恢复、challenge 审批、void / refund 队列、audit log。详见 `apps/api/src/routes/commercial.ts`。
 
-## 市场状态
+## 市场状态机
 
 ```mermaid
 stateDiagram-v2
@@ -117,25 +146,26 @@ stateDiagram-v2
   Refundable --> Settled
 ```
 
-第一条端到端路径围绕 `Brazil vs Morocco, 63:00-73:00 - will either team score a goal?` 的 Yes/No live goal window 展开。
+API 把 `oracle_state` 与 `market_status` 解耦：Ponder 读到 `proposed / challenged / finalized / voided` 时覆盖 in-memory 的默认 `live_trading`，让 UI 同时反映赛事进程和链上裁决。
 
 ## 项目结构
 
 ```text
-worldcup-prediction-market/
+polygoal/
   apps/
-    api/       Bun + Hono API and OpenAPI docs
-    indexer/   Ponder event indexing
-    web/       Next.js frontend
-  contracts/   Foundry Solidity contracts, scripts, tests
+    api/        Bun + Hono API、OpenAPI、market/risk/operator 服务、ponder reader
+    indexer/    Ponder（ponder.config.ts / ponder.schema.ts / src/index.ts，legacy/ 仅供参考）
+    web/        Next.js 前端，新版页面结构
+  contracts/    Foundry Solidity 合约 + 脚本 + 测试
+  deployments/  xlayer-testnet.json：infra + 已部署的小组赛 match_winner 市场
   packages/
-    config/          Shared chain and market config
-    db/              Migrations, DB client, repository, seed
-    odds-ingestion/  Odds providers, normalizers, comparisons
-    sdk/             API, chain, market quote helpers
-    shared/          Domain types, constants, validation
-  scripts/      Cross-package test and flow scripts
-  docs/         Product, development, testing, data source docs
+    config/         链 / 合约 / 市场配置
+    db/             单一 migration、in-memory + Postgres facade、seed
+    odds-ingestion/ provider / normalizer / 对比
+    sdk/            api / chain / market quote 封装
+    shared/         类型、常量、商业市场 helper、deployments helper、worldcup-2026 赛程
+  scripts/      跨包验证 + 部署脚本（X Layer、VPS、demo seed）
+  docs/         产品 / 开发 / 测试 / 数据源 / 部署文档
 ```
 
 ## 本地开发
@@ -146,19 +176,21 @@ worldcup-prediction-market/
 bun install
 ```
 
-常用服务：
+最少需要 4 个进程（不同终端各跑一个，或后台启动）：
 
 ```bash
-bun run dev:web
-bun run dev:api
-bun run dev:indexer
-bun run dev:anvil
+bun run dev:anvil      # 本地链 (chainId 31337)
+bun run dev:api        # http://localhost:8787
+bun run dev:web        # http://localhost:3000，浏览器走 /api → next rewrite → API
+bun run dev:indexer    # Ponder（连接 .env 中的 RPC 与 DATABASE_URL）
 ```
 
-本地部署合约：
+部署本地合约 + 配置 `.env`：
 
 ```bash
-bun run deploy:local
+bun run deploy:local                  # forge script Deploy.s.sol
+# 或一键端到端（部署 + seed + 跑流程）
+bun scripts/contracts-full-flow.ts
 ```
 
 数据库：
@@ -166,12 +198,34 @@ bun run deploy:local
 ```bash
 bun run db:migrate
 bun run db:seed
-bun run db:backup
+bun run db:backup                     # pg_dump 到 BACKUP_DIR（默认 ./backups/pg）
 ```
 
-生产环境除逻辑备份外，还应启用托管数据库自带的自动备份 / PITR；详见 `docs/development.md` 中「数据库备份与恢复」。
+商业 / 演示 portfolio seed（针对某个钱包灌入跨状态持仓与结算记录）：
 
-## 测试和验证
+```bash
+bun run seed:demo-portfolio --wallet=0xABC...
+```
+
+## 部署到 X Layer Testnet
+
+`scripts/deploy-xlayer-infra.ts` 部署底层合约（MockUSDC / CTF / Oracle / Factory），`scripts/deploy-xlayer-markets.ts` 用共享的 `WORLDCUP_2026_GROUP_STAGE_FIXTURES` 创建一组 `match_winner` 市场。两个脚本都会回写 `deployments/xlayer-testnet.json`，前端、Ponder 配置和 API 都直接读这份单一 source of truth。
+
+```bash
+PRIVATE_KEY=0x... bun run deploy:xlayer:infra
+PRIVATE_KEY=0x... bun run deploy:xlayer:markets
+```
+
+## 部署到 VPS（方案 A：公网前端 + 本地 API）
+
+`scripts/deploy-vps-ip-http.sh` 把仓库 rsync 到 VPS，安装 bun / nginx，构建 Next，写一份 `polygoal-web.service` 并配置 nginx：
+
+- 浏览器 → `http://VPS_IP/` → nginx → `127.0.0.1:3000`（Next）
+- 浏览器 → `http://VPS_IP/api/*` → nginx → `127.0.0.1:8787`（API）
+
+同源 `/api` 同时解决 CORS 与 Chrome Private Network Access 屏蔽，前端代码不再写 `localhost`。SSR 走 `INTERNAL_API_URL=http://127.0.0.1:8787`，直接打 loopback。详见 `docs/deploy-scheme-a-public-frontend-local-api.md`。
+
+## 测试与验证
 
 ```bash
 bun run typecheck
@@ -184,20 +238,23 @@ bun run coverage
 
 ```bash
 bun --cwd apps/web test
-bun run test:web:responsive
+bun run test:web:responsive          # 多视口启动 Next dev server 检查横向溢出
 bun run test:contracts
-bun run test:e2e:anvil
+bun run contracts:flow               # Solidity-only 端到端流程（不依赖 Anvil 守护进程）
+bun run test:e2e:anvil               # 真 Anvil + 部署 + DB + API + 索引器
 bun run test:commercial-matrix
 bun run test:security
 bun run test:performance
+bun run test:postgres                # 真 Postgres 集成
+bun run test:report                  # 汇总报告
 ```
-
-`test:web:responsive` 会启动 Next dev server，并用 H5 视口检查主要页面没有横向溢出。
 
 ## 文档入口
 
-- 产品与技术方案：`docs/worldcup-2026-evm-prediction-market.md`
+- 产品 / 技术方案：`docs/worldcup-2026-evm-prediction-market.md`
 - 开发文档：`docs/development.md`
 - 测试策略：`docs/testing.md`
 - 数据源策略：`docs/data-sources.md`
 - 结算规则：`docs/resolution-rules.md`
+- 比赛胜负优先产品需求：`docs/match-winner-first-requirements.md`
+- 公网前端 + 本地 API 部署：`docs/deploy-scheme-a-public-frontend-local-api.md`

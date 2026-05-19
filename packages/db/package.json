@@ -1,5 +1,5 @@
 {
-  "name": "@worldcup/db",
+  "name": "@polygoal/db",
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
@@ -11,8 +11,8 @@
     "test": "bun test test"
   },
   "dependencies": {
-    "@worldcup/odds-ingestion": "workspace:*",
-    "@worldcup/shared": "workspace:*",
+    "@polygoal/odds-ingestion": "workspace:*",
+    "@polygoal/shared": "workspace:*",
     "postgres": "^3.4.7"
   }
 }

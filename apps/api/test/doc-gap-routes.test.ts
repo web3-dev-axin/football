@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { InMemoryDb } from "@worldcup/db";
-import { DEMO_FIXTURE_ID } from "@worldcup/shared";
+import { InMemoryDb } from "@polygoal/db";
+import { DEMO_FIXTURE_ID } from "@polygoal/shared";
 import { createApiApp } from "../src/app";
 import { createAppContext } from "../src/services/app-context";
 import { openApiSpec } from "../src/openapi/spec";

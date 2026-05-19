@@ -1,4 +1,4 @@
-import type { Market, OutcomeIndex } from "@worldcup/shared";
+import type { Market, OutcomeIndex } from "@polygoal/shared";
 
 export function quoteBuy(market: Market, outcomeIndex: OutcomeIndex, collateralAmountRaw: string) {
   const outcome = market.outcomes.find((candidate) => candidate.outcomeIndex === outcomeIndex);

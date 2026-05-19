@@ -12,12 +12,15 @@ import {
   DEMO_MARKET_KEY,
   DEMO_OUTCOMES,
   DEMO_TEAMS,
+  WORLDCUP_2026_GROUP_STAGE_FIXTURES,
+  WORLDCUP_2026_TEAMS,
   compareFixtureSnapshots,
   countConfirmedGoalsInWindow,
+  getXLayerMarketDeployment,
   makeWindowKey,
   outcomeForGoalCount,
-  buildGoalWindowMarketDefinition,
-  buildNextGoalMarketDefinition,
+  buildExactScoreMarketDefinition,
+  buildMatchWinnerMarketDefinition,
   type AuditLog,
   type CommercialFeatureFlags,
   type CommercialMarketDefinition,
@@ -43,8 +46,8 @@ import {
   type Challenge,
   type ChallengeReviewStatus,
   type RefundRequest,
-} from "@worldcup/shared";
-import { syncDemoOdds, type OddsComparison, type OddsSnapshot } from "@worldcup/odds-ingestion";
+} from "@polygoal/shared";
+import { syncDemoOdds, type OddsComparison, type OddsSnapshot } from "@polygoal/odds-ingestion";
 
 export type DbState = {
   teams: Team[];
@@ -78,17 +81,25 @@ export function payloadHash(payload: unknown): string {
 
 export function createDemoState(): DbState {
   const now = new Date("2026-06-13T22:03:00.000Z").toISOString();
-  const officialSnapshot = makeSnapshot("fixture:demo-2026-001", "fifa_official", DEMO_FIXTURE, now);
-  const providerSnapshot = makeSnapshot("fixture:demo-2026-001", "sports_data_provider", DEMO_FIXTURE, now);
-  const comparison = makeFixtureComparison(DEMO_FIXTURE, DEMO_FIXTURE);
+  const teams = mergeTeams(DEMO_TEAMS, WORLDCUP_2026_TEAMS);
+  const fixtures = mergeFixtures([{ ...DEMO_FIXTURE }], WORLDCUP_2026_GROUP_STAGE_FIXTURES);
+  const snapshots: DataSourceSnapshot[] = [];
+  const comparisons: DataComparison[] = [];
+  for (const fixture of fixtures) {
+    snapshots.push(
+      makeSnapshot(`fixture:${fixture.fifaMatchId}`, "fifa_official", fixture, now),
+      makeSnapshot(`fixture:${fixture.fifaMatchId}`, "sports_data_provider", fixture, now),
+    );
+    comparisons.push(makeFixtureComparison(fixture, fixture));
+  }
 
-  return {
-    teams: [...DEMO_TEAMS],
-    fixtures: [{ ...DEMO_FIXTURE }],
+  const state: DbState = {
+    teams,
+    fixtures,
     liveWindows: [],
     markets: [],
-    snapshots: [officialSnapshot, providerSnapshot],
-    comparisons: [comparison],
+    snapshots,
+    comparisons,
     events: [],
     proposals: [],
     trades: [],
@@ -107,6 +118,44 @@ export function createDemoState(): DbState {
     oddsSnapshots: [],
     oddsComparisons: [],
   };
+
+  bootstrapCommercialMarketsInState(state);
+  return state;
+}
+
+function mergeTeams(...sources: Team[][]): Team[] {
+  const byId = new Map<string, Team>();
+  for (const source of sources) {
+    for (const team of source) {
+      if (!byId.has(team.id)) byId.set(team.id, { ...team });
+    }
+  }
+  return [...byId.values()];
+}
+
+function mergeFixtures(...sources: Fixture[][]): Fixture[] {
+  const byId = new Map<string, Fixture>();
+  for (const source of sources) {
+    for (const fixture of source) {
+      if (!byId.has(fixture.id)) byId.set(fixture.id, { ...fixture });
+    }
+  }
+  return [...byId.values()].sort((left, right) => left.matchNumber - right.matchNumber);
+}
+
+function bootstrapCommercialMarketsInState(state: DbState): void {
+  for (const fixture of state.fixtures) {
+    for (const marketType of ["match_winner", "exact_score"] as const) {
+      const exists = state.commercialMarkets.some(
+        (market) => market.fixtureId === fixture.id && market.marketType === marketType,
+      );
+      if (exists) continue;
+      const definition = marketType === "match_winner"
+        ? buildMatchWinnerMarketDefinition({ fixtureId: fixture.id, homeTeam: fixture.homeTeam, awayTeam: fixture.awayTeam })
+        : buildExactScoreMarketDefinition({ fixtureId: fixture.id, homeTeam: fixture.homeTeam, awayTeam: fixture.awayTeam });
+      state.commercialMarkets.push(definition);
+    }
+  }
 }
 
 export function makeSnapshot(subjectKey: string, source: "fifa_official" | "sports_data_provider", payload: unknown, timestamp: string): DataSourceSnapshot {
@@ -182,7 +231,7 @@ export class InMemoryDb {
       startMatchSecond: input.startMatchSecond,
       endMatchSecond: input.endMatchSecond,
       tradingCloseMatchSecond: Math.max(input.startMatchSecond, input.endMatchSecond - 30),
-      title: `${fixture.homeTeam} vs ${fixture.awayTeam}, ${Math.floor(input.startMatchSecond / 60)}:00-${Math.floor(input.endMatchSecond / 60)}:00 - will either team score a goal?`,
+      title: `${fixture.homeTeam} vs ${fixture.awayTeam}`,
       dataQualityStatus: comparison.status,
     };
     this.state.liveWindows.push(liveWindow);
@@ -206,7 +255,7 @@ export class InMemoryDb {
     const market: Market = {
       id: marketId,
       liveWindowId,
-      marketKey: liveWindow.windowKey,
+      marketKey: isDemoWindow ? DEMO_MARKET_KEY : `fixture:${liveWindow.fixtureId}:match_winner`,
       title: liveWindow.title,
       status: "live_trading",
       fixture,
@@ -252,6 +301,19 @@ export class InMemoryDb {
     return [...this.state.fixtures].sort((left, right) => left.kickoffAtUtc.localeCompare(right.kickoffAtUtc));
   }
 
+  listMatchEvents(fixtureId: string): MatchEvent[] {
+    const fixture = this.getFixture(fixtureId);
+    const keys = new Set<string>();
+    keys.add(fixtureId);
+    if (fixture) {
+      keys.add(fixture.id);
+      keys.add(fixture.fifaMatchId);
+    }
+    return this.state.events
+      .filter((event) => keys.has(event.fixtureId))
+      .sort((left, right) => left.matchSecond - right.matchSecond);
+  }
+
   syncDemoMarketOdds(marketId = DEMO_MARKET_ID, providerProbabilityBps = 5100): OddsComparison {
     const market = this.getMarket(marketId);
     if (!market) throw Object.assign(new Error("Market not found"), { code: "MARKET_NOT_FOUND" });
@@ -283,6 +345,37 @@ export class InMemoryDb {
     return { inserted: 1, updated: 0, events: [event] };
   }
 
+  /**
+   * Demo-only: synthesize a realistic match event timeline for one or more fixtures so the
+   * "Live feed" panel on the fixture/market pages has something to show without an upstream
+   * provider. Events are deterministic per fixture id (same fixture → same timeline) so
+   * re-runs are stable. Idempotent unless `force` is true.
+   */
+  seedDemoMatchEventsForFixtures(opts: { fixtureIds?: string[]; force?: boolean } = {}): { fixtureId: string; inserted: number; skipped: boolean }[] {
+    const targets = opts.fixtureIds && opts.fixtureIds.length > 0
+      ? opts.fixtureIds
+          .map((id) => this.getFixture(id))
+          .filter((fixture): fixture is Fixture => Boolean(fixture))
+      : this.state.fixtures;
+
+    const summary: { fixtureId: string; inserted: number; skipped: boolean }[] = [];
+
+    for (const fixture of targets) {
+      const existing = this.state.events.filter((event) => event.fixtureId === fixture.id || event.fixtureId === fixture.fifaMatchId);
+      if (existing.length > 0 && !opts.force) {
+        summary.push({ fixtureId: fixture.id, inserted: 0, skipped: true });
+        continue;
+      }
+      if (opts.force && existing.length > 0) {
+        this.state.events = this.state.events.filter((event) => event.fixtureId !== fixture.id && event.fixtureId !== fixture.fifaMatchId);
+      }
+      const events = synthesizeFixtureEvents(fixture);
+      for (const event of events) this.state.events.push(event);
+      summary.push({ fixtureId: fixture.id, inserted: events.length, skipped: false });
+    }
+    return summary;
+  }
+
   compareLiveEvents(fixtureId: string, startMatchSecond: number, endMatchSecond: number): DataComparison {
     const events = this.state.events.filter((event) => event.fixtureId === fixtureId);
     const mismatches = events.some((event) => event.eventType === "goal" && !event.isConfirmed)
@@ -308,10 +401,11 @@ export class InMemoryDb {
     const existing = this.state.proposals.find((proposal) => proposal.marketId === market.id);
     if (existing) return existing;
     const goalCount = countConfirmedGoalsInWindow(this.state.events, market.liveWindow);
+    const winner = market.fixture.homeScore > market.fixture.awayScore ? 0 : market.fixture.homeScore === market.fixture.awayScore ? 1 : 2;
     const proposal: ResultProposal = {
       id: `proposal:${market.id}`,
       marketId: market.id,
-      winningOutcome: outcomeForGoalCount(goalCount),
+      winningOutcome: market.marketKey.includes("match_winner") ? winner : outcomeForGoalCount(goalCount),
       goalCountInWindow: goalCount,
       evidenceUri,
       challengeDeadline: new Date(now.getTime() + CHALLENGE_WINDOW_SECONDS * 1000).toISOString(),
@@ -336,6 +430,103 @@ export class InMemoryDb {
     return proposal;
   }
 
+  // Demo-only: inject a settlement (Market + LiveWindow + ResultProposal) for a commercial
+  // market without going through the live_events verification flow. Used by seed scripts and
+  // the /admin/results/seed-demo endpoint so that the settlements UI has data even when
+  // markets close in the future.
+  seedDemoSettlementForCommercial(opts: {
+    commercialMarketId: string;
+    winningOutcome?: number;
+    status?: ResultProposal["status"];
+    challengeDeadline?: string;
+    evidenceUri?: string;
+    goalCountInWindow?: number;
+    now?: Date;
+  }): ResultProposal {
+    const commercial = this.state.commercialMarkets.find((candidate) => candidate.id === opts.commercialMarketId);
+    if (!commercial) throw Object.assign(new Error("Commercial market not found"), { code: "COMMERCIAL_MARKET_NOT_FOUND" });
+    const fixture = this.state.fixtures.find((candidate) => candidate.id === commercial.fixtureId);
+    if (!fixture) throw Object.assign(new Error("Fixture not found"), { code: "FIXTURE_NOT_FOUND" });
+
+    const status: ResultProposal["status"] = opts.status ?? "proposed";
+    const winningOutcome = Math.max(0, Math.min(commercial.outcomes.length - 1, opts.winningOutcome ?? 0));
+    const now = opts.now ?? new Date();
+    const defaultDeadline = status === "proposed"
+      ? new Date(now.getTime() + 30 * 60_000).toISOString()
+      : new Date(now.getTime() - 24 * 60 * 60_000).toISOString();
+    const challengeDeadline = opts.challengeDeadline ?? defaultDeadline;
+    const marketStatus = status === "finalized" ? "redeemable" : status === "voided" ? "voided" : status === "challenged" ? "challenged" : "proposed";
+    const oracleState = status === "finalized" ? "finalized" : status;
+
+    let liveWindow = this.state.liveWindows.find((candidate) => candidate.windowKey === commercial.windowKey);
+    if (!liveWindow) {
+      liveWindow = {
+        id: `${commercial.id}:window`,
+        fixtureId: fixture.id,
+        windowKey: commercial.windowKey,
+        windowType: "goal_in_next_10_minutes",
+        startMatchSecond: commercial.startMatchSecond,
+        endMatchSecond: commercial.endMatchSecond,
+        tradingCloseMatchSecond: commercial.tradingCloseMatchSecond,
+        title: commercial.title,
+        status: "closed",
+        dataQualityStatus: fixture.dataQualityStatus,
+      };
+      this.state.liveWindows.push(liveWindow);
+    }
+
+    const deployment = getXLayerMarketDeployment(commercial.windowKey);
+    let market = this.state.markets.find((candidate) => candidate.id === commercial.id);
+    if (!market) {
+      market = {
+        id: commercial.id,
+        liveWindowId: liveWindow.id,
+        marketKey: commercial.windowKey,
+        title: commercial.title,
+        status: marketStatus,
+        fixture,
+        liveWindow: { ...liveWindow, marketId: commercial.id },
+        outcomes: commercial.outcomes.map((outcome) => ({ outcomeIndex: outcome.outcomeIndex, label: outcome.label, probabilityBps: outcome.probabilityBps })),
+        marketAddress: deployment?.marketAddress,
+        txHash: deployment?.txHash,
+        volumeRaw: "0",
+        liquidityRaw: "0",
+        oracleState,
+        dataQualityStatus: fixture.dataQualityStatus,
+      };
+      liveWindow.marketId = market.id;
+      this.state.markets.push(market);
+    } else {
+      market.status = marketStatus;
+      market.oracleState = oracleState;
+      if (!market.marketAddress && deployment?.marketAddress) market.marketAddress = deployment.marketAddress;
+      if (!market.txHash && deployment?.txHash) market.txHash = deployment.txHash;
+    }
+
+    const proposalId = `proposal:${commercial.id}`;
+    let proposal = this.state.proposals.find((candidate) => candidate.id === proposalId);
+    if (!proposal) {
+      proposal = {
+        id: proposalId,
+        marketId: commercial.id,
+        winningOutcome,
+        goalCountInWindow: opts.goalCountInWindow ?? 0,
+        evidenceUri: opts.evidenceUri ?? "",
+        challengeDeadline,
+        status,
+        txHash: deterministicTxHash(`proposal:${commercial.id}:${status}`),
+      };
+      this.state.proposals.push(proposal);
+    } else {
+      proposal.winningOutcome = winningOutcome;
+      proposal.goalCountInWindow = opts.goalCountInWindow ?? proposal.goalCountInWindow;
+      proposal.evidenceUri = opts.evidenceUri ?? proposal.evidenceUri;
+      proposal.challengeDeadline = challengeDeadline;
+      proposal.status = status;
+    }
+    return proposal;
+  }
+
   recordTrade(trade: Omit<Trade, "id">): Trade {
     const market = this.getMarket(trade.marketId);
     if (!market) throw Object.assign(new Error("Market not found"), { code: "MARKET_NOT_FOUND" });
@@ -343,6 +534,84 @@ export class InMemoryDb {
     market.volumeRaw = (BigInt(market.volumeRaw) + BigInt(trade.collateralAmountRaw)).toString();
     this.state.trades.push(saved);
     return saved;
+  }
+
+  // Demo-only: inject a Trade record for a commercial market id so the /portfolio
+  // page has positions to display even when no event indexer has run. Synthesizes
+  // the supporting Market + LiveWindow rows (like seedDemoSettlementForCommercial)
+  // and optionally overrides the market status so the position lands in a specific
+  // bucket (live / awaiting / redeemable / voided / settled).
+  seedDemoPositionForCommercial(opts: {
+    commercialMarketId: string;
+    walletAddress: `0x${string}`;
+    outcomeIndex: number;
+    collateralAmountRaw: string;
+    sharesAmountRaw?: string;
+    tradeType?: "buy" | "sell";
+    marketStatusOverride?: Market["status"];
+    oracleStateOverride?: Market["oracleState"];
+  }): Trade {
+    const commercial = this.state.commercialMarkets.find((candidate) => candidate.id === opts.commercialMarketId);
+    if (!commercial) throw Object.assign(new Error("Commercial market not found"), { code: "COMMERCIAL_MARKET_NOT_FOUND" });
+    const fixture = this.state.fixtures.find((candidate) => candidate.id === commercial.fixtureId);
+    if (!fixture) throw Object.assign(new Error("Fixture not found"), { code: "FIXTURE_NOT_FOUND" });
+    const outcomeIndex = Math.max(0, Math.min(commercial.outcomes.length - 1, opts.outcomeIndex));
+    const tradeType = opts.tradeType ?? "buy";
+    const sharesAmountRaw = opts.sharesAmountRaw ?? opts.collateralAmountRaw;
+
+    let liveWindow = this.state.liveWindows.find((candidate) => candidate.windowKey === commercial.windowKey);
+    if (!liveWindow) {
+      liveWindow = {
+        id: `${commercial.id}:window`,
+        fixtureId: fixture.id,
+        windowKey: commercial.windowKey,
+        windowType: "goal_in_next_10_minutes",
+        startMatchSecond: commercial.startMatchSecond,
+        endMatchSecond: commercial.endMatchSecond,
+        tradingCloseMatchSecond: commercial.tradingCloseMatchSecond,
+        title: commercial.title,
+        status: "closed",
+        dataQualityStatus: fixture.dataQualityStatus,
+      };
+      this.state.liveWindows.push(liveWindow);
+    }
+
+    const deployment = getXLayerMarketDeployment(commercial.windowKey);
+    let market = this.state.markets.find((candidate) => candidate.id === commercial.id);
+    if (!market) {
+      market = {
+        id: commercial.id,
+        liveWindowId: liveWindow.id,
+        marketKey: commercial.windowKey,
+        title: commercial.title,
+        status: opts.marketStatusOverride ?? "live_trading",
+        fixture,
+        liveWindow: { ...liveWindow, marketId: commercial.id },
+        outcomes: commercial.outcomes.map((outcome) => ({ outcomeIndex: outcome.outcomeIndex, label: outcome.label, probabilityBps: outcome.probabilityBps })),
+        marketAddress: deployment?.marketAddress,
+        txHash: deployment?.txHash,
+        volumeRaw: "0",
+        liquidityRaw: "0",
+        oracleState: opts.oracleStateOverride ?? "none",
+        dataQualityStatus: fixture.dataQualityStatus,
+      };
+      liveWindow.marketId = market.id;
+      this.state.markets.push(market);
+    } else {
+      if (opts.marketStatusOverride) market.status = opts.marketStatusOverride;
+      if (opts.oracleStateOverride) market.oracleState = opts.oracleStateOverride;
+      if (!market.marketAddress && deployment?.marketAddress) market.marketAddress = deployment.marketAddress;
+      if (!market.txHash && deployment?.txHash) market.txHash = deployment.txHash;
+    }
+
+    return this.recordTrade({
+      marketId: market.id,
+      walletAddress: opts.walletAddress,
+      outcomeIndex,
+      collateralAmountRaw: opts.collateralAmountRaw,
+      sharesAmountRaw,
+      tradeType,
+    });
   }
 
   recordRedemption(redemption: Omit<Redemption, "id">): Redemption {
@@ -422,11 +691,54 @@ export class InMemoryDb {
     if (!fixture) throw Object.assign(new Error("Fixture not found"), { code: "FIXTURE_NOT_FOUND" });
     const existing = this.state.commercialMarkets.find((market) => market.fixtureId === input.fixtureId && market.marketType === input.marketType && market.startMatchSecond === input.startMatchSecond);
     if (existing) return existing;
-    const definition = input.marketType === "next_goal_team"
-      ? buildNextGoalMarketDefinition({ fixtureId: fixture.id, homeTeam: fixture.homeTeam, awayTeam: fixture.awayTeam, startMatchSecond: input.startMatchSecond, endMatchSecond: input.endMatchSecond ?? 5400 })
-      : buildGoalWindowMarketDefinition({ fixtureId: fixture.id, homeTeam: fixture.homeTeam, awayTeam: fixture.awayTeam, startMatchSecond: input.startMatchSecond, durationMinutes: input.marketType === "goal_window_5m" ? 5 : input.marketType === "goal_window_15m" ? 15 : 10 });
+    const definition = input.marketType === "match_winner"
+      ? buildMatchWinnerMarketDefinition({ fixtureId: fixture.id, homeTeam: fixture.homeTeam, awayTeam: fixture.awayTeam })
+      : input.marketType === "exact_score"
+        ? buildExactScoreMarketDefinition({ fixtureId: fixture.id, homeTeam: fixture.homeTeam, awayTeam: fixture.awayTeam })
+        : undefined;
+    if (!definition) throw Object.assign(new Error(`Unsupported commercial market type: ${input.marketType}`), { code: "UNSUPPORTED_COMMERCIAL_MARKET_TYPE" });
     this.state.commercialMarkets.push(definition);
     return definition;
+  }
+
+  listCommercialMarkets(filters: { fixtureId?: string; marketType?: CommercialMarketType } = {}): CommercialMarketDefinition[] {
+    return this.state.commercialMarkets.filter((market) => {
+      if (filters.fixtureId && market.fixtureId !== filters.fixtureId) return false;
+      if (filters.marketType && market.marketType !== filters.marketType) return false;
+      return true;
+    });
+  }
+
+  getCommercialMarketById(id: string): CommercialMarketDefinition | undefined {
+    return this.state.commercialMarkets.find((market) => market.id === id);
+  }
+
+  bootstrapScheduleMarkets(): {
+    fixturesCount: number;
+    matchWinnerCreated: number;
+    exactScoreCreated: number;
+    matchWinnerExisting: number;
+    exactScoreExisting: number;
+    totalPools: number;
+  } {
+    const counters = { fixturesCount: 0, matchWinnerCreated: 0, exactScoreCreated: 0, matchWinnerExisting: 0, exactScoreExisting: 0, totalPools: 0 };
+    for (const fixture of this.state.fixtures) {
+      counters.fixturesCount += 1;
+      for (const marketType of ["match_winner", "exact_score"] as const) {
+        const before = this.state.commercialMarkets.length;
+        this.createCommercialLiveWindow({ fixtureId: fixture.id, marketType, startMatchSecond: 0 });
+        const created = this.state.commercialMarkets.length > before;
+        if (marketType === "match_winner") {
+          if (created) counters.matchWinnerCreated += 1;
+          else counters.matchWinnerExisting += 1;
+        } else {
+          if (created) counters.exactScoreCreated += 1;
+          else counters.exactScoreExisting += 1;
+        }
+      }
+    }
+    counters.totalPools = this.state.commercialMarkets.length;
+    return counters;
   }
 
   recordLiquiditySnapshot(snapshot: Omit<LiquiditySnapshot, "id" | "capturedAt">): LiquiditySnapshot {
@@ -515,4 +827,72 @@ export class InMemoryDb {
 
 export function deterministicTxHash(seed: string): `0x${string}` {
   return `0x${createHash("sha256").update(seed).digest("hex")}`;
+}
+
+/**
+ * Build a deterministic, realistic match-event timeline for a fixture so the "Live feed"
+ * panel always has something to render. Same fixture → same timeline.
+ */
+function synthesizeFixtureEvents(fixture: Fixture): MatchEvent[] {
+  const hash = createHash("sha256").update(`feed:${fixture.id}`).digest();
+  const rng = (idx: number, mod: number) => hash.readUInt8(idx % hash.length) % mod;
+  const homeGoals = rng(0, 4); // 0..3
+  const awayGoals = rng(1, 4);
+  const cancelledGoal = rng(2, 5) === 0;
+
+  const events: MatchEvent[] = [];
+  const push = (minute: number, partial: Pick<MatchEvent, "eventType" | "team" | "isCancelled" | "isConfirmed">, idx: number) => {
+    events.push({
+      id: `event:${fixture.id}:${idx}:${partial.eventType}`,
+      fixtureId: fixture.id,
+      providerEventId: `seed:${fixture.id}:${idx}`,
+      eventType: partial.eventType,
+      team: partial.team,
+      matchMinute: minute,
+      matchSecond: minute * 60,
+      isConfirmed: partial.isConfirmed,
+      isCancelled: partial.isCancelled,
+      source: "sports_data_provider",
+    });
+  };
+
+  let idx = 0;
+  push(1, { eventType: "half_start", team: fixture.homeTeam, isCancelled: false, isConfirmed: true }, idx++);
+
+  // First-half goals: roughly half of goals before half-time
+  const firstHalfHome = Math.ceil(homeGoals / 2);
+  const firstHalfAway = Math.ceil(awayGoals / 2);
+  for (let i = 0; i < firstHalfHome; i++) {
+    const minute = 8 + rng(10 + i, 30); // 8..37
+    push(minute, { eventType: "goal", team: fixture.homeTeam, isCancelled: false, isConfirmed: true }, idx++);
+  }
+  for (let i = 0; i < firstHalfAway; i++) {
+    const minute = 12 + rng(20 + i, 30); // 12..41
+    push(minute, { eventType: "goal", team: fixture.awayTeam, isCancelled: false, isConfirmed: true }, idx++);
+  }
+  push(45, { eventType: "half_end", team: fixture.homeTeam, isCancelled: false, isConfirmed: true }, idx++);
+
+  push(46, { eventType: "half_start", team: fixture.homeTeam, isCancelled: false, isConfirmed: true }, idx++);
+  // Optional VAR moment
+  if (rng(3, 3) === 0) {
+    push(55 + rng(4, 20), { eventType: "var_review", team: fixture.homeTeam, isCancelled: false, isConfirmed: true }, idx++);
+  }
+  if (cancelledGoal) {
+    push(58 + rng(5, 10), { eventType: "goal_cancelled", team: fixture.awayTeam, isCancelled: true, isConfirmed: true }, idx++);
+  }
+  // Second-half goals
+  const secondHalfHome = homeGoals - firstHalfHome;
+  const secondHalfAway = awayGoals - firstHalfAway;
+  for (let i = 0; i < secondHalfHome; i++) {
+    const minute = 55 + rng(30 + i, 30); // 55..84
+    push(minute, { eventType: "goal", team: fixture.homeTeam, isCancelled: false, isConfirmed: true }, idx++);
+  }
+  for (let i = 0; i < secondHalfAway; i++) {
+    const minute = 58 + rng(40 + i, 28); // 58..85
+    push(minute, { eventType: "goal", team: fixture.awayTeam, isCancelled: false, isConfirmed: true }, idx++);
+  }
+
+  push(90, { eventType: "full_time", team: fixture.homeTeam, isCancelled: false, isConfirmed: true }, idx++);
+
+  return events.sort((a, b) => a.matchSecond - b.matchSecond);
 }

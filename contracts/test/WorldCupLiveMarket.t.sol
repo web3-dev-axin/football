@@ -101,6 +101,60 @@ contract WorldCupLiveMarketTest {
         );
     }
 
+    function testFactoryCreatesMatchWinnerAndExactScoreOutcomeCounts() public {
+        (address winnerAddress,, bytes32 winnerCondition) = factory.createMarket(
+            "fixture:demo-2026-001:match_winner",
+            "demo-2026-001",
+            0,
+            5400,
+            closeTime,
+            keccak256("match-winner"),
+            3
+        );
+        (, uint256 winnerOutcomeCount, bool winnerPrepared,,) = ctf.getCondition(winnerCondition);
+        assertTrue(winnerPrepared);
+        assertEq(winnerOutcomeCount, 3);
+        assertEq(WorldCupMarket(winnerAddress).outcomeCount(), 3);
+
+        (address scoreAddress,, bytes32 scoreCondition) = factory.createMarket(
+            "fixture:demo-2026-001:exact_score",
+            "demo-2026-001",
+            0,
+            5400,
+            closeTime,
+            keccak256("exact-score"),
+            10
+        );
+        (, uint256 scoreOutcomeCount, bool scorePrepared,,) = ctf.getCondition(scoreCondition);
+        assertTrue(scorePrepared);
+        assertEq(scoreOutcomeCount, 10);
+        assertEq(WorldCupMarket(scoreAddress).outcomeCount(), 10);
+    }
+
+    function testMultiOutcomeBuyFinalizeRedeem() public {
+        (address marketAddress, bytes32 multiMarketId, bytes32 multiConditionId) = factory.createMarket(
+            "fixture:demo-2026-001:match_winner_multi",
+            "demo-2026-001",
+            0,
+            5400,
+            closeTime,
+            keccak256("match-winner"),
+            3
+        );
+        WorldCupMarket multi = WorldCupMarket(marketAddress);
+        vm.prank(userA);
+        usdc.approve(address(multi), type(uint256).max);
+        vm.prank(userA);
+        multi.buy(2, 100_000_000, 1);
+        assertEq(ctf.balanceOf(ctf.getPositionId(multiConditionId, 2), userA), 100_000_000);
+        oracle.proposeResult(address(multi), _payloadFor(multiMarketId, 2));
+        vm.warp(block.timestamp + 700);
+        oracle.finalize(multiMarketId);
+        vm.prank(userA);
+        uint256 paid = multi.redeem(2, 100_000_000);
+        assertEq(paid, 100_000_000);
+    }
+
     function testBuyYesAndNoOutcomeShares() public {
         vm.prank(userA);
         market.buy(0, 100_000_000, 100_000_000);
@@ -185,7 +239,7 @@ contract WorldCupLiveMarketTest {
         factory.createMarket("fixture:demo-2026-002:goal_window:3780:4380", "demo-2026-002", 3780, 4380, closeTime, keccak256("x"), 2);
 
         vm.expectRevert(WorldCupMarketFactory.InvalidOutcomeCount.selector);
-        factory.createMarket("fixture:demo-2026-003:goal_window:3780:4380", "demo-2026-003", 3780, 4380, closeTime, keccak256("x"), 3);
+        factory.createMarket("fixture:demo-2026-003:goal_window:3780:4380", "demo-2026-003", 3780, 4380, closeTime, keccak256("x"), 1);
     }
 
     function testBuySellAndTradingValidationErrors() public {
@@ -234,7 +288,7 @@ contract WorldCupLiveMarketTest {
         isolated.setMarket(userA, true);
 
         vm.expectRevert(ConditionalTokensLite.InvalidOutcomeCount.selector);
-        isolated.prepareCondition(keccak256("bad"), 3);
+        isolated.prepareCondition(keccak256("bad"), 1);
 
         isolated.prepareCondition(keccak256("ok"), 2);
         vm.expectRevert(ConditionalTokensLite.ConditionAlreadyPrepared.selector);
@@ -400,8 +454,12 @@ contract WorldCupLiveMarketTest {
     }
 
     function _payload(uint8 winningOutcome) internal view returns (OptimisticResultOracle.ResultPayload memory) {
+        return _payloadFor(marketId, winningOutcome);
+    }
+
+    function _payloadFor(bytes32 payloadMarketId, uint8 winningOutcome) internal pure returns (OptimisticResultOracle.ResultPayload memory) {
         return OptimisticResultOracle.ResultPayload({
-            marketId: marketId,
+            marketId: payloadMarketId,
             winningOutcome: winningOutcome,
             homeScore: 1,
             awayScore: 0,

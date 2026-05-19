@@ -1,7 +1,7 @@
 export const openApiSpec = {
   openapi: "3.1.0",
   info: {
-    title: "World Cup Prediction Market API",
+    title: "polygoal API",
     version: "0.1.0",
   },
   paths: {
@@ -9,10 +9,12 @@ export const openApiSpec = {
     "/teams": { get: { summary: "List teams" } },
     "/schedule": { get: { summary: "List schedule fixtures" } },
     "/fixtures": { get: { summary: "List fixtures" } },
+    "/fixtures/{fixtureId}/events": { get: { summary: "List match events (goals, VAR, half/full time) for a fixture" } },
     "/data-quality/fixtures/{fixtureId}": { get: { summary: "Get fixture data quality" } },
     "/live-windows": { get: { summary: "List live windows" } },
     "/markets": { get: { summary: "List markets" } },
     "/markets/{marketId}": { get: { summary: "Get market detail" } },
+    "/commercial-markets": { get: { summary: "List commercial market definitions (match_winner, exact_score) filtered by fixtureId or marketType" } },
     "/odds/markets/{marketId}": { get: { summary: "Get market odds comparison" } },
     "/odds/fixtures/{fixtureId}": { get: { summary: "Get fixture odds comparisons" } },
     "/settlements": { get: { summary: "List settlements" } },
@@ -27,6 +29,7 @@ export const openApiSpec = {
     "/admin/odds/compare": { post: { summary: "Compare market odds" } },
     "/admin/live-windows/create": { post: { summary: "Create demo live window" } },
     "/admin/markets/create": { post: { summary: "Create chain market metadata" } },
+    "/admin/markets/bootstrap-schedule": { post: { summary: "Bootstrap match_winner + exact_score pools for every fixture in the schedule (idempotent)" } },
     "/admin/results/propose": { post: { summary: "Propose result" } },
     "/admin/results/finalize": { post: { summary: "Finalize result" } },
   },

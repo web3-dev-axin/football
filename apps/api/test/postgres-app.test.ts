@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import postgres from "postgres";
-import { DEMO_FIXTURE_ID, DEMO_MARKET_ID } from "@worldcup/shared";
+import { DEMO_FIXTURE_ID, DEMO_MARKET_ID } from "@polygoal/shared";
 import { createApiApp } from "../src/app";
 import { createAppContextFromEnv } from "../src/services/app-context";
 
@@ -101,11 +101,10 @@ describe("API app with real Postgres", () => {
         values ('trade:pg-portfolio', ${marketBody.market.id}, ${walletAddress}, 0, '250000000', '240000000', 'buy')
       `;
 
-      const commercialResponse = await post(app, "/admin/markets/commercial-window", {
+      const commercialResponse = await post(app, "/admin/markets/commercial", {
         fixtureId: DEMO_FIXTURE_ID,
-        marketType: "next_goal_team",
-        startMatchSecond: 3600,
-        endMatchSecond: 5400,
+        marketType: "match_winner",
+        startMatchSecond: 0,
       });
       expect(commercialResponse.status).toBe(200);
       const refundResponse = await post(app, `/admin/markets/${DEMO_MARKET_ID}/refund`, {
@@ -123,7 +122,7 @@ describe("API app with real Postgres", () => {
       expect(portfolio.summary.positionCount).toBe(1);
       expect(portfolio.positions[0]).toMatchObject({ walletAddress, sharesAmountRaw: "240000000" });
       expect(reloadedCtx.db.state.refunds.some((refund) => refund.walletAddress === walletAddress && refund.reason === "void refund")).toBe(true);
-      expect(reloadedCtx.db.state.commercialMarkets.some((market) => market.marketType === "next_goal_team" && market.startMatchSecond === 3600)).toBe(true);
+      expect(reloadedCtx.db.state.commercialMarkets.some((market) => market.marketType === "match_winner" && market.isFeatured)).toBe(true);
 
       if ("close" in reloadedCtx.db) await reloadedCtx.db.close();
     } finally {

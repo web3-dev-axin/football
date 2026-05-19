@@ -2,6 +2,8 @@
 pragma solidity ^0.8.26;
 
 contract ConditionalTokensLite {
+    uint256 public constant MAX_OUTCOME_COUNT = 16;
+
     struct Condition {
         bytes32 questionId;
         uint256 outcomeSlotCount;
@@ -53,7 +55,7 @@ contract ConditionalTokensLite {
     }
 
     function prepareCondition(bytes32 questionId, uint256 outcomeSlotCount) external onlyOwner returns (bytes32 conditionId) {
-        if (outcomeSlotCount != 2) revert InvalidOutcomeCount();
+        if (outcomeSlotCount < 2 || outcomeSlotCount > MAX_OUTCOME_COUNT) revert InvalidOutcomeCount();
         conditionId = getConditionId(questionId, outcomeSlotCount);
         if (conditions[conditionId].prepared) revert ConditionAlreadyPrepared();
         conditions[conditionId].questionId = questionId;

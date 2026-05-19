@@ -3,7 +3,7 @@ import type { Fixture, LiveWindow, MatchEvent, MarketOutcome, Team } from "./typ
 export const DEMO_FIXTURE_ID = "demo-2026-001";
 export const DEMO_LIVE_WINDOW_ID = "live-window-demo-63-73";
 export const DEMO_MARKET_ID = "market-demo-63-73";
-export const DEMO_MARKET_KEY = "fixture:demo-2026-001:goal_window:3780:4380";
+export const DEMO_MARKET_KEY = "fixture:demo-2026-001:match_winner";
 export const USDC_DECIMALS = 6;
 export const DEFAULT_CHAIN_ID = 31337;
 export const LIVE_WINDOW_SECONDS = 600;
@@ -39,14 +39,15 @@ export const DEMO_LIVE_WINDOW: LiveWindow = {
   startMatchSecond: 3780,
   endMatchSecond: 4380,
   tradingCloseMatchSecond: 4350,
-  title: "Brazil vs Morocco, 63:00-73:00 - will either team score a goal?",
+  title: "Brazil vs Morocco",
   status: "live_trading",
   dataQualityStatus: "verified",
 };
 
 export const DEMO_OUTCOMES: MarketOutcome[] = [
-  { outcomeIndex: 0, label: "Yes", probabilityBps: 5000 },
-  { outcomeIndex: 1, label: "No", probabilityBps: 5000 },
+  { outcomeIndex: 0, label: "Brazil", probabilityBps: 4200 },
+  { outcomeIndex: 1, label: "Draw", probabilityBps: 2800 },
+  { outcomeIndex: 2, label: "Morocco", probabilityBps: 3000 },
 ];
 
 export const DEMO_GOAL_EVENT: MatchEvent = {

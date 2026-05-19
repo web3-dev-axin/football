@@ -1,8 +1,20 @@
 node_modules
+.env
+.env.vps
 .next
 coverage
 coverage-ts
 reports
 contracts/cache
 contracts/out
+.superpowers/
 backups/
+
+# Tooling / cache artifacts (avoid committing debug output or misplaced caches)
+.playwright-cli/
+**/Library/Caches/
+*.pile
+
+# Debug screenshots / scratch output (committed artifacts go in docs/ instead)
+output/playwright/*.png
+!output/playwright/settlements-real-onchain.png

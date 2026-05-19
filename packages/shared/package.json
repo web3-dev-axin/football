@@ -1,5 +1,5 @@
 {
-  "name": "@worldcup/shared",
+  "name": "@polygoal/shared",
   "type": "module",
   "exports": {
     ".": "./src/index.ts",

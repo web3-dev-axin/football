@@ -1,25 +1,31 @@
 {
-  "name": "@worldcup/web",
+  "name": "@polygoal/web",
   "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "start": "next start -H 127.0.0.1 -p 3000",
     "test": "bun test test",
     "test:responsive": "bun scripts/responsive-smoke.ts",
     "lint": "tsc -p tsconfig.json --noEmit",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@worldcup/db": "workspace:*",
-    "@worldcup/sdk": "workspace:*",
-    "@worldcup/shared": "workspace:*",
+    "@heroui/react": "^3.0.5",
+    "@polygoal/db": "workspace:*",
+    "@polygoal/odds-ingestion": "workspace:*",
+    "@polygoal/sdk": "workspace:*",
+    "@polygoal/shared": "workspace:*",
+    "framer-motion": "^12.39.0",
     "next": "latest",
     "react": "latest",
     "react-dom": "latest",
     "viem": "^2.48.11"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4",
     "@types/node": "^25.9.0",
-    "playwright": "^1.60.0"
+    "playwright": "^1.60.0",
+    "tailwindcss": "^4"
   }
 }

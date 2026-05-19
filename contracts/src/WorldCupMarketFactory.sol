@@ -45,7 +45,7 @@ contract WorldCupMarketFactory {
         uint256 outcomeCount
     ) external returns (address market, bytes32 marketId, bytes32 conditionId) {
         if (msg.sender != owner) revert NotOwner();
-        if (outcomeCount != 2) revert InvalidOutcomeCount();
+        if (outcomeCount < 2 || outcomeCount > 16) revert InvalidOutcomeCount();
         bytes32 keyHash = keccak256(bytes(marketKey));
         if (usedMarketKeyHash[keyHash]) revert DuplicateMarket();
         usedMarketKeyHash[keyHash] = true;
@@ -61,7 +61,8 @@ contract WorldCupMarketFactory {
             fixtureId,
             windowStartMatchSecond,
             windowEndMatchSecond,
-            closeTime
+            closeTime,
+            outcomeCount
         );
         market = address(deployed);
         marketById[marketId] = market;

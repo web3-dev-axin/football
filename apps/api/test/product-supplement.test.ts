@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { InMemoryDb } from "@worldcup/db";
+import { InMemoryDb } from "@polygoal/db";
 import { createApiApp } from "../src/app";
 import { createAppContext } from "../src/services/app-context";
 import { openApiSpec } from "../src/openapi/spec";
@@ -16,7 +16,8 @@ describe("product supplement API", () => {
     expect(teams.teams.map((team) => team.name)).toContain("Brazil");
 
     const schedule = await json<{ fixtures: Array<{ venue: string; kickoffAtUtc: string }> }>(await app.request("/schedule"));
-    expect(schedule.fixtures[0]?.venue).toContain("Stadium");
+    expect(schedule.fixtures.length).toBeGreaterThan(0);
+    expect(schedule.fixtures.every((fixture) => fixture.venue && fixture.venue.length > 0)).toBe(true);
 
     const windowBody = await json<{ liveWindow: { id: string } }>(await app.request("/admin/live-windows/create", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ fixtureId: "demo-2026-001", startMatchSecond: 3780, endMatchSecond: 4380 }) }));
     const marketBody = await json<{ market: { id: string } }>(await app.request("/admin/markets/create", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ liveWindowId: windowBody.liveWindow.id }) }));

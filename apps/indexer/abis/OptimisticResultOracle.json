@@ -1,0 +1,387 @@
+{
+  "abi": [
+    {
+      "type": "constructor",
+      "inputs": [
+        {
+          "name": "challengeWindowSeconds_",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "adminResolve",
+      "inputs": [
+        {
+          "name": "marketId",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        },
+        {
+          "name": "winningOutcome",
+          "type": "uint8",
+          "internalType": "uint8"
+        }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "challenge",
+      "inputs": [
+        {
+          "name": "marketId",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        },
+        {
+          "name": "reason",
+          "type": "string",
+          "internalType": "string"
+        },
+        {
+          "name": "evidenceUri",
+          "type": "string",
+          "internalType": "string"
+        }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "challengeWindowSeconds",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "finalize",
+      "inputs": [
+        {
+          "name": "marketId",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "owner",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "proposals",
+      "inputs": [
+        {
+          "name": "",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "market",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "proposer",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "winningOutcome",
+          "type": "uint8",
+          "internalType": "uint8"
+        },
+        {
+          "name": "payloadHash",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        },
+        {
+          "name": "challengeDeadline",
+          "type": "uint256",
+          "internalType": "uint256"
+        },
+        {
+          "name": "challenged",
+          "type": "bool",
+          "internalType": "bool"
+        },
+        {
+          "name": "finalized",
+          "type": "bool",
+          "internalType": "bool"
+        },
+        {
+          "name": "evidenceUri",
+          "type": "string",
+          "internalType": "string"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "proposeResult",
+      "inputs": [
+        {
+          "name": "market",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "payload",
+          "type": "tuple",
+          "internalType": "struct OptimisticResultOracle.ResultPayload",
+          "components": [
+            {
+              "name": "marketId",
+              "type": "bytes32",
+              "internalType": "bytes32"
+            },
+            {
+              "name": "winningOutcome",
+              "type": "uint8",
+              "internalType": "uint8"
+            },
+            {
+              "name": "homeScore",
+              "type": "int16",
+              "internalType": "int16"
+            },
+            {
+              "name": "awayScore",
+              "type": "int16",
+              "internalType": "int16"
+            },
+            {
+              "name": "dataSourceHash",
+              "type": "bytes32",
+              "internalType": "bytes32"
+            },
+            {
+              "name": "evidenceUri",
+              "type": "string",
+              "internalType": "string"
+            }
+          ]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "proposalId",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        }
+      ],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "voidMarket",
+      "inputs": [
+        {
+          "name": "market",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "marketId",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "event",
+      "name": "MarketVoided",
+      "inputs": [
+        {
+          "name": "marketId",
+          "type": "bytes32",
+          "indexed": true,
+          "internalType": "bytes32"
+        },
+        {
+          "name": "market",
+          "type": "address",
+          "indexed": true,
+          "internalType": "address"
+        }
+      ],
+      "anonymous": false
+    },
+    {
+      "type": "event",
+      "name": "ResultChallenged",
+      "inputs": [
+        {
+          "name": "marketId",
+          "type": "bytes32",
+          "indexed": true,
+          "internalType": "bytes32"
+        },
+        {
+          "name": "challenger",
+          "type": "address",
+          "indexed": true,
+          "internalType": "address"
+        },
+        {
+          "name": "reason",
+          "type": "string",
+          "indexed": false,
+          "internalType": "string"
+        },
+        {
+          "name": "evidenceUri",
+          "type": "string",
+          "indexed": false,
+          "internalType": "string"
+        }
+      ],
+      "anonymous": false
+    },
+    {
+      "type": "event",
+      "name": "ResultFinalized",
+      "inputs": [
+        {
+          "name": "marketId",
+          "type": "bytes32",
+          "indexed": true,
+          "internalType": "bytes32"
+        },
+        {
+          "name": "winningOutcome",
+          "type": "uint8",
+          "indexed": false,
+          "internalType": "uint8"
+        },
+        {
+          "name": "payoutNumerators",
+          "type": "uint256[]",
+          "indexed": false,
+          "internalType": "uint256[]"
+        },
+        {
+          "name": "payoutDenominator",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
+        }
+      ],
+      "anonymous": false
+    },
+    {
+      "type": "event",
+      "name": "ResultProposed",
+      "inputs": [
+        {
+          "name": "marketId",
+          "type": "bytes32",
+          "indexed": true,
+          "internalType": "bytes32"
+        },
+        {
+          "name": "proposalId",
+          "type": "bytes32",
+          "indexed": true,
+          "internalType": "bytes32"
+        },
+        {
+          "name": "proposer",
+          "type": "address",
+          "indexed": true,
+          "internalType": "address"
+        },
+        {
+          "name": "winningOutcome",
+          "type": "uint8",
+          "indexed": false,
+          "internalType": "uint8"
+        },
+        {
+          "name": "payloadHash",
+          "type": "bytes32",
+          "indexed": false,
+          "internalType": "bytes32"
+        },
+        {
+          "name": "challengeDeadline",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
+        }
+      ],
+      "anonymous": false
+    },
+    {
+      "type": "error",
+      "name": "AlreadyFinalized",
+      "inputs": []
+    },
+    {
+      "type": "error",
+      "name": "ChallengeWindowClosed",
+      "inputs": []
+    },
+    {
+      "type": "error",
+      "name": "ChallengeWindowOpen",
+      "inputs": []
+    },
+    {
+      "type": "error",
+      "name": "InvalidOutcome",
+      "inputs": []
+    },
+    {
+      "type": "error",
+      "name": "NotOwner",
+      "inputs": []
+    },
+    {
+      "type": "error",
+      "name": "ProposalChallenged",
+      "inputs": []
+    },
+    {
+      "type": "error",
+      "name": "ProposalExists",
+      "inputs": []
+    },
+    {
+      "type": "error",
+      "name": "ProposalMissing",
+      "inputs": []
+    }
+  ]
+}

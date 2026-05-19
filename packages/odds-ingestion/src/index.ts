@@ -1,4 +1,4 @@
-import { DEMO_MARKET_ID, type DataQualityStatus } from "@worldcup/shared";
+import { DEMO_MARKET_ID, type DataQualityStatus } from "@polygoal/shared";
 
 export type OddsProviderName = "fifa_reference" | "provider_a" | "provider_b";
 
@@ -28,6 +28,23 @@ export type OddsComparison = {
   maxDeviationBps: number;
   mismatches: OddsMismatch[];
   comparedAt: string;
+};
+
+export type ExactScoreProviderOutcome = {
+  label: string;
+  providerOutcomeId: string;
+  decimalOdds: number;
+  impliedProbabilityBps: number;
+  status: "available" | "missing";
+};
+
+export type ExactScoreOdds = {
+  fixtureId: string;
+  marketType: "exact_score";
+  provider: OddsProviderName;
+  providerMarketId: string;
+  lastUpdatedAt: string;
+  outcomes: ExactScoreProviderOutcome[];
 };
 
 export const ODDS_WARNING_DEVIATION_BPS = 500;
@@ -75,4 +92,35 @@ export function syncDemoOdds(input: { marketId?: string; providerProbabilityBps?
   const snapshots = buildDemoOddsSnapshots(input);
   const comparison = compareOddsSnapshots(snapshots[0], snapshots[1]);
   return { snapshots, comparison };
+}
+
+export function buildDemoExactScoreOdds(input: { fixtureId: string; provider?: OddsProviderName }): ExactScoreOdds {
+  const provider = input.provider ?? "provider_a";
+  const providerMarketId = `${provider}:correct_score:${input.fixtureId}`;
+  const odds = [
+    ["0-0", 8.5, 1180],
+    ["1-0", 6.2, 1610],
+    ["0-1", 7.1, 1410],
+    ["1-1", 5.8, 1720],
+    ["2-0", 8.9, 1120],
+    ["0-2", 10.5, 950],
+    ["2-1", 7.4, 1350],
+    ["1-2", 9.8, 1020],
+    ["2-2", 12.0, 830],
+    ["Other score", 4.8, 2080],
+  ] as const;
+  return {
+    fixtureId: input.fixtureId,
+    marketType: "exact_score",
+    provider,
+    providerMarketId,
+    lastUpdatedAt: "2026-06-13T22:25:00.000Z",
+    outcomes: odds.map(([label, decimalOdds, impliedProbabilityBps]) => ({
+      label,
+      providerOutcomeId: `${provider}:correct_score:${label.toLowerCase().replaceAll(" ", "_")}`,
+      decimalOdds,
+      impliedProbabilityBps,
+      status: "available",
+    })),
+  };
 }

@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync } from "node:fs";
-import { InMemoryDb } from "@worldcup/db";
-import { DEMO_FIXTURE_ID, DEMO_LIVE_WINDOW } from "@worldcup/shared";
+import { InMemoryDb } from "@polygoal/db";
+import { DEMO_FIXTURE_ID, DEMO_LIVE_WINDOW } from "@polygoal/shared";
 
 const db = new InMemoryDb();
 const liveWindow = db.createLiveWindow({ fixtureId: DEMO_FIXTURE_ID, startMatchSecond: DEMO_LIVE_WINDOW.startMatchSecond, endMatchSecond: DEMO_LIVE_WINDOW.endMatchSecond });

@@ -1,5 +1,5 @@
 import postgres from "postgres";
-import type { ChallengeReviewStatus, CommercialFeatureFlags, CommercialMarketType, Fixture, ProviderHealthCheck, RiskLimit, RiskLimitScope } from "@worldcup/shared";
+import type { ChallengeReviewStatus, CommercialFeatureFlags, CommercialMarketType, Fixture, ProviderHealthCheck, RiskLimit, RiskLimitScope } from "@polygoal/shared";
 import { createDemoState, InMemoryDb, type DbState } from "./client";
 import { applyPostgresMigrations, assertResetIsSafe, loadPostgresState, persistPostgresState, resetPostgres } from "./postgres-flow";
 
@@ -112,6 +112,11 @@ export class PostgresDb {
     return this.memory.listSchedule();
   }
 
+  async listMatchEvents(fixtureId: string) {
+    await this.reload();
+    return this.memory.listMatchEvents(fixtureId);
+  }
+
   async syncDemoMarketOdds(marketId?: string, providerProbabilityBps?: number) {
     await this.reload();
     const comparison = this.memory.syncDemoMarketOdds(marketId, providerProbabilityBps);
@@ -129,6 +134,13 @@ export class PostgresDb {
     const result = this.memory.syncDemoLiveEvents(mode);
     await this.save();
     return result;
+  }
+
+  async seedDemoMatchEventsForFixtures(opts: Parameters<InMemoryDb["seedDemoMatchEventsForFixtures"]>[0]) {
+    await this.reload();
+    const summary = this.memory.seedDemoMatchEventsForFixtures(opts);
+    await this.save();
+    return summary;
   }
 
   async compareLiveEvents(fixtureId: string, startMatchSecond: number, endMatchSecond: number) {
@@ -150,6 +162,20 @@ export class PostgresDb {
     const proposal = this.memory.finalizeResult(marketId, now);
     await this.save();
     return proposal;
+  }
+
+  async seedDemoSettlementForCommercial(opts: Parameters<InMemoryDb["seedDemoSettlementForCommercial"]>[0]) {
+    await this.reload();
+    const proposal = this.memory.seedDemoSettlementForCommercial(opts);
+    await this.save();
+    return proposal;
+  }
+
+  async seedDemoPositionForCommercial(opts: Parameters<InMemoryDb["seedDemoPositionForCommercial"]>[0]) {
+    await this.reload();
+    const trade = this.memory.seedDemoPositionForCommercial(opts);
+    await this.save();
+    return trade;
   }
 
   async getFeatureFlags() {
@@ -195,6 +221,23 @@ export class PostgresDb {
     const market = this.memory.createCommercialLiveWindow(input);
     await this.save();
     return market;
+  }
+
+  async listCommercialMarkets(filters: { fixtureId?: string; marketType?: CommercialMarketType } = {}) {
+    await this.reload();
+    return this.memory.listCommercialMarkets(filters);
+  }
+
+  async getCommercialMarketById(id: string) {
+    await this.reload();
+    return this.memory.getCommercialMarketById(id);
+  }
+
+  async bootstrapScheduleMarkets() {
+    await this.reload();
+    const summary = this.memory.bootstrapScheduleMarkets();
+    await this.save();
+    return summary;
   }
 
   async pauseMarket(marketId: string, operatorId: string, reason: string) {

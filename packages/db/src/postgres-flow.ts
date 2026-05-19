@@ -26,8 +26,8 @@ import {
   type RiskLimit,
   type Team,
   type Trade,
-} from "@worldcup/shared";
-import type { OddsComparison, OddsSnapshot } from "@worldcup/odds-ingestion";
+} from "@polygoal/shared";
+import type { OddsComparison, OddsSnapshot } from "@polygoal/odds-ingestion";
 import { createDemoState, InMemoryDb, type DbState } from "./client";
 
 type Sql = ReturnType<typeof postgres>;

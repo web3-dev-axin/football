@@ -1,4 +1,4 @@
-import { DEFAULT_RISK_LIMITS, evaluateRiskOrder, type RiskLimit } from "@worldcup/shared";
+import { DEFAULT_RISK_LIMITS, evaluateRiskOrder, type RiskLimit } from "@polygoal/shared";
 
 export function defaultRiskLimit(): RiskLimit {
   return { ...DEFAULT_RISK_LIMITS };

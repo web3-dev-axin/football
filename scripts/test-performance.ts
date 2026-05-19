@@ -1,12 +1,12 @@
 import { mkdirSync, writeFileSync } from "node:fs";
-import { InMemoryDb } from "@worldcup/db";
-import { DEMO_FIXTURE_ID } from "@worldcup/shared";
+import { InMemoryDb } from "@polygoal/db";
+import { DEMO_FIXTURE_ID } from "@polygoal/shared";
 
 const started = performance.now();
 const db = new InMemoryDb();
+db.createCommercialLiveWindow({ fixtureId: DEMO_FIXTURE_ID, marketType: "match_winner", startMatchSecond: 0 });
+db.createCommercialLiveWindow({ fixtureId: DEMO_FIXTURE_ID, marketType: "exact_score", startMatchSecond: 0 });
 for (let i = 0; i < 250; i += 1) {
-  const start = 3600 + i;
-  db.createCommercialLiveWindow({ fixtureId: DEMO_FIXTURE_ID, marketType: i % 3 === 0 ? "goal_window_5m" : i % 3 === 1 ? "goal_window_10m" : "goal_window_15m", startMatchSecond: start });
   db.recordProviderHealth({ provider: "provider_a", status: "healthy", latencyMs: 120, lastUpdateAgeSeconds: 2, details: { iteration: i } });
 }
 const elapsedMs = performance.now() - started;

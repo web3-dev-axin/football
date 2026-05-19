@@ -1,4 +1,4 @@
-export type OutcomeIndex = 0 | 1;
+export type OutcomeIndex = number;
 
 export const OUTCOME = {
   YES: 0,
@@ -69,7 +69,7 @@ export type LiveWindow = {
 
 export type MarketOutcome = {
   outcomeIndex: OutcomeIndex;
-  label: "Yes" | "No";
+  label: string;
   probabilityBps: number;
   tokenId?: string;
 };
@@ -89,6 +89,11 @@ export type Market = {
   liquidityRaw: string;
   oracleState: "none" | "proposed" | "challenged" | "finalized" | "voided";
   dataQualityStatus: DataQualityStatus;
+  // Populated by the API when an on-chain `ResultFinalized` or `MarketVoided`
+  // has been emitted for this market. Lets the portfolio split positions into
+  // "Redeemable" (you held the winning outcome) vs "Settled" (you held a
+  // losing outcome) without an extra round trip.
+  winningOutcome?: number;
 };
 
 export type MatchEvent = {
@@ -164,13 +169,8 @@ export type Redemption = {
 
 
 export type CommercialMarketType =
-  | "goal_window_5m"
-  | "goal_window_10m"
-  | "goal_window_15m"
-  | "next_goal_team"
-  | "half_remaining_goal"
-  | "next_card_team"
-  | "next_corner_team";
+  | "match_winner"
+  | "exact_score";
 
 export type CommercialMarketRiskLevel = "low" | "medium" | "medium_high" | "high";
 
@@ -182,6 +182,21 @@ export type CommercialMarketTypeDefinition = {
   riskLevel: CommercialMarketRiskLevel;
   enabledByDefault: boolean;
   chainCreationEnabled: boolean;
+  marketCategory?: "core" | "score" | "legacy_live";
+  displayPriority?: number;
+  isFeatured?: boolean;
+};
+
+export type CommercialProviderOddsStatus = "available" | "missing" | "stale" | "mapping_error";
+
+export type CommercialProviderOdds = {
+  source: string;
+  providerMarketId: string;
+  providerOutcomeId: string;
+  decimalOdds: number;
+  impliedProbabilityBps: number;
+  lastUpdatedAt: string;
+  status: CommercialProviderOddsStatus;
 };
 
 export type CommercialMarketOutcome = {
@@ -189,6 +204,21 @@ export type CommercialMarketOutcome = {
   label: string;
   probabilityBps: number;
   tokenId?: string;
+  providerOdds?: CommercialProviderOdds;
+};
+
+export type ResolutionRuleCode =
+  | "full_time_match_winner_excluding_extra_time_and_penalties"
+  | "full_time_exact_score_or_other_score";
+
+export type ResolutionRule = {
+  code: ResolutionRuleCode;
+  humanText: string;
+  bullets: string[];
+  challengeWindowSeconds: number;
+  excludesExtraTime: boolean;
+  excludesPenalties: boolean;
+  fullRulesUrl?: string;
 };
 
 export type CommercialMarketDefinition = {
@@ -202,14 +232,19 @@ export type CommercialMarketDefinition = {
   tradingCloseMatchSecond: number;
   outcomes: CommercialMarketOutcome[];
   resolutionPolicy: string;
+  resolutionRule?: ResolutionRule;
   riskLevel: CommercialMarketRiskLevel;
   chainCreationEnabled: boolean;
+  marketCategory?: "core" | "score" | "legacy_live";
+  displayPriority?: number;
+  isFeatured?: boolean;
+  settlementRule?: string;
 };
 
 export type CommercialFeatureFlags = {
   enableRealCollateral: boolean;
-  enableLiveGoalWindow: boolean;
-  enableNextGoalMarket: boolean;
+  enableMatchWinnerMarket: boolean;
+  enableExactScoreMarket: boolean;
   enableCardMarket: boolean;
   enableCornerMarket: boolean;
   enablePublicChallenge: boolean;

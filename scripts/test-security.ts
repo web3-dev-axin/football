@@ -1,5 +1,5 @@
 import { mkdirSync, writeFileSync } from "node:fs";
-import { InMemoryDb } from "@worldcup/db";
+import { InMemoryDb } from "@polygoal/db";
 import { createApiApp } from "../apps/api/src/app";
 import { createAppContext } from "../apps/api/src/services/app-context";
 

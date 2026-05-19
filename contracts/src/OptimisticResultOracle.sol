@@ -48,7 +48,7 @@ contract OptimisticResultOracle {
     }
 
     function proposeResult(address market, ResultPayload calldata payload) external returns (bytes32 proposalId) {
-        if (payload.winningOutcome > 1) revert InvalidOutcome();
+        if (payload.winningOutcome >= WorldCupMarket(market).outcomeCount()) revert InvalidOutcome();
         Proposal storage existing = proposals[payload.marketId];
         if (existing.market != address(0)) revert ProposalExists();
         bytes32 payloadHash = keccak256(abi.encode(payload.marketId, payload.winningOutcome, payload.homeScore, payload.awayScore, payload.dataSourceHash, payload.evidenceUri));
@@ -86,21 +86,21 @@ contract OptimisticResultOracle {
         if (block.timestamp < proposal.challengeDeadline) revert ChallengeWindowOpen();
         proposal.finalized = true;
         WorldCupMarket(proposal.market).finalizeResult(proposal.winningOutcome);
-        uint256[] memory payouts = new uint256[](2);
+        uint256[] memory payouts = new uint256[](WorldCupMarket(proposal.market).outcomeCount());
         payouts[proposal.winningOutcome] = 1;
         emit ResultFinalized(marketId, proposal.winningOutcome, payouts, 1);
     }
 
     function adminResolve(bytes32 marketId, uint8 winningOutcome) external {
         if (msg.sender != owner) revert NotOwner();
-        if (winningOutcome > 1) revert InvalidOutcome();
         Proposal storage proposal = proposals[marketId];
         if (proposal.market == address(0)) revert ProposalMissing();
+        if (winningOutcome >= WorldCupMarket(proposal.market).outcomeCount()) revert InvalidOutcome();
         if (proposal.finalized) revert AlreadyFinalized();
         proposal.finalized = true;
         proposal.winningOutcome = winningOutcome;
         WorldCupMarket(proposal.market).finalizeResult(winningOutcome);
-        uint256[] memory payouts = new uint256[](2);
+        uint256[] memory payouts = new uint256[](WorldCupMarket(proposal.market).outcomeCount());
         payouts[winningOutcome] = 1;
         emit ResultFinalized(marketId, winningOutcome, payouts, 1);
     }

@@ -1,5 +1,5 @@
 {
-  "name": "@worldcup/api",
+  "name": "@polygoal/api",
   "type": "module",
   "scripts": {
     "dev": "bun src/server.ts",
@@ -9,10 +9,11 @@
     "openapi": "bun src/openapi/spec.ts"
   },
   "dependencies": {
-    "@worldcup/db": "workspace:*",
-    "@worldcup/shared": "workspace:*",
+    "@polygoal/db": "workspace:*",
+    "@polygoal/shared": "workspace:*",
     "hono": "^4.12.18",
     "@hono/node-server": "latest",
+    "postgres": "^3.4.0",
     "swagger-ui-dist": "^5.32.6"
   }
 }

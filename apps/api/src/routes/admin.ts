@@ -1,6 +1,6 @@
 import type { Hono } from "hono";
-import { DEMO_FIXTURE_ID } from "@worldcup/shared";
-import type { Fixture } from "@worldcup/shared";
+import { DEMO_FIXTURE_ID } from "@polygoal/shared";
+import type { Fixture } from "@polygoal/shared";
 import type { AppContext } from "../services/app-context";
 
 export function registerAdminRoutes(app: Hono, ctx: AppContext): void {
@@ -63,6 +63,11 @@ export function registerAdminRoutes(app: Hono, ctx: AppContext): void {
     return c.json({ market });
   });
 
+  app.post("/admin/markets/bootstrap-schedule", async (c) => {
+    const summary = await ctx.db.bootstrapScheduleMarkets();
+    return c.json({ summary });
+  });
+
   app.post("/admin/results/propose", async (c) => {
     const body = await c.req.json<{ marketId: string; evidenceUri: string }>();
     const proposal = await ctx.db.proposeResult(body.marketId, body.evidenceUri);
@@ -72,6 +77,52 @@ export function registerAdminRoutes(app: Hono, ctx: AppContext): void {
   app.post("/admin/results/finalize", async (c) => {
     const body = await c.req.json<{ marketId: string; now?: string }>();
     const proposal = await ctx.db.finalizeResult(body.marketId, body.now ? new Date(body.now) : undefined);
+    return c.json({ proposal });
+  });
+
+  // Demo-only: inject a Trade record for a commercial market id so the /portfolio
+  // page has positions to display without waiting for the on-chain indexer. Allows
+  // overriding market.status / oracleState so the position lands in the requested
+  // portfolio bucket (live / awaiting / redeemable / voided / settled).
+  app.post("/admin/portfolio/seed-position", async (c) => {
+    const body = await c.req.json<{
+      commercialMarketId: string;
+      walletAddress: `0x${string}`;
+      outcomeIndex: number;
+      collateralAmountRaw: string;
+      sharesAmountRaw?: string;
+      tradeType?: "buy" | "sell";
+      marketStatusOverride?: "live_trading" | "closing_soon" | "scheduled" | "closed" | "proposed" | "challenged" | "redeemable" | "settled" | "voided";
+      oracleStateOverride?: "none" | "proposed" | "challenged" | "finalized" | "voided";
+    }>();
+    const trade = await ctx.db.seedDemoPositionForCommercial(body);
+    return c.json({ trade });
+  });
+
+  // Demo-only: synthesize a realistic match-event timeline for the requested fixtures
+  // (or every fixture in the schedule) so the "Live feed" panel on the fixture and
+  // market pages always has goal / VAR / half-time / full-time entries to render.
+  // Idempotent unless `force` is true.
+  app.post("/admin/live/seed-events", async (c) => {
+    const body = await c.req.json<{ fixtureIds?: string[]; force?: boolean }>().catch((): { fixtureIds?: string[]; force?: boolean } => ({}));
+    const summary = await ctx.db.seedDemoMatchEventsForFixtures({ fixtureIds: body.fixtureIds, force: body.force });
+    const inserted = summary.reduce((acc, item) => acc + item.inserted, 0);
+    const skipped = summary.filter((item) => item.skipped).length;
+    return c.json({ fixturesTouched: summary.length, eventsInserted: inserted, fixturesSkipped: skipped, summary });
+  });
+
+  // Demo-only: inject a synthetic settlement for a commercial market id so the
+  // /settlements UI has data even when no on-chain proposal has been emitted yet.
+  app.post("/admin/results/seed-demo", async (c) => {
+    const body = await c.req.json<{
+      commercialMarketId: string;
+      winningOutcome?: number;
+      status?: "proposed" | "challenged" | "finalized" | "voided";
+      challengeDeadline?: string;
+      evidenceUri?: string;
+      goalCountInWindow?: number;
+    }>();
+    const proposal = await ctx.db.seedDemoSettlementForCommercial(body);
     return c.json({ proposal });
   });
 }

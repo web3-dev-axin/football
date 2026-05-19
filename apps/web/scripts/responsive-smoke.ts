@@ -6,7 +6,7 @@ import { chromium, type Browser } from "playwright";
 const appDir = fileURLToPath(new URL("..", import.meta.url));
 const port = Number(process.env.RESPONSIVE_SMOKE_PORT ?? 3107);
 const baseUrl = process.env.RESPONSIVE_BASE_URL ?? `http://127.0.0.1:${port}`;
-const routes = ["/", "/schedule", "/live", "/portfolio", "/settlement", "/operator", "/markets/market-demo-63-73"];
+const routes = ["/", "/portfolio", "/settlements", "/markets/market-demo-63-73"];
 const viewports = [
   { name: "narrow H5", width: 360, height: 740 },
   { name: "iPhone 12/13/14", width: 390, height: 844 },
@@ -58,11 +58,16 @@ async function assertNoHorizontalOverflow(browser: Browser): Promise<void> {
         clientWidth: document.documentElement.clientWidth,
         scrollWidth: document.documentElement.scrollWidth,
         bodyScrollWidth: document.body.scrollWidth,
+        mobileTabbarVisible: getComputedStyle(document.querySelector(".mobile-tabbar")!).display !== "none",
+        mobileTabbarPosition: getComputedStyle(document.querySelector(".mobile-tabbar")!).position,
       }));
       const overflow = Math.max(result.scrollWidth, result.bodyScrollWidth) - result.clientWidth;
 
       if (overflow > 1) {
         failures.push(`${viewport.name} ${route}: overflow ${overflow}px`);
+      }
+      if (!result.mobileTabbarVisible || result.mobileTabbarPosition !== "fixed") {
+        failures.push(`${viewport.name} ${route}: mobile tabbar is not fixed and visible`);
       }
     }
 

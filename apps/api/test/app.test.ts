@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { InMemoryDb } from "@worldcup/db";
-import { DEMO_FIXTURE_ID } from "@worldcup/shared";
+import { InMemoryDb } from "@polygoal/db";
+import { DEMO_FIXTURE_ID } from "@polygoal/shared";
 import { createApiApp } from "../src/app";
 import { createAppContext } from "../src/services/app-context";
 
@@ -26,7 +26,7 @@ describe("API app", () => {
     const response = await app.request("/admin/live-windows/create", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ fixtureId: DEMO_FIXTURE_ID, windowType: "goal_in_next_10_minutes", startMatchSecond: 3780, endMatchSecond: 4380 }),
+      body: JSON.stringify({ fixtureId: DEMO_FIXTURE_ID, startMatchSecond: 3780, endMatchSecond: 4380 }),
     });
     expect(response.status).toBe(409);
     const body = await json<{ error: { code: string } }>(response);
@@ -50,7 +50,7 @@ describe("API app", () => {
       body: JSON.stringify({ liveWindowId: windowBody.liveWindow.id }),
     });
     const marketBody = await json<{ market: { id: string; outcomes: Array<{ label: string }> } }>(marketResponse);
-    expect(marketBody.market.outcomes.map((outcome) => outcome.label)).toEqual(["Yes", "No"]);
+    expect(marketBody.market.outcomes.map((outcome) => outcome.label)).toEqual(["Brazil", "Draw", "Morocco"]);
 
     await app.request("/admin/sync/live-events", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ fixtureId: DEMO_FIXTURE_ID, mode: "demo_goal" }) });
     await app.request("/admin/data-quality/live-events/compare", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ fixtureId: DEMO_FIXTURE_ID, windowStartMatchSecond: 3780, windowEndMatchSecond: 4380 }) });
@@ -61,7 +61,7 @@ describe("API app", () => {
       body: JSON.stringify({ marketId: marketBody.market.id, evidenceUri: "demo://fixture/demo-2026-001/events" }),
     });
     const proposalBody = await json<{ proposal: { winningOutcome: number; goalCountInWindow: number } }>(proposalResponse);
-    expect(proposalBody.proposal.winningOutcome).toBe(0);
+    expect(proposalBody.proposal.winningOutcome).toBe(1);
     expect(proposalBody.proposal.goalCountInWindow).toBe(1);
 
     const finalizeResponse = await app.request("/admin/results/finalize", {

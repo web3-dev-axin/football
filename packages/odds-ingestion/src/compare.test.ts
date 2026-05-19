@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { buildDemoOddsSnapshots, compareOddsSnapshots, syncDemoOdds } from "./index";
+import { buildDemoExactScoreOdds, buildDemoOddsSnapshots, compareOddsSnapshots, syncDemoOdds } from "./index";
 import { normalizeOddsProbabilities } from "./normalizers/odds";
 
 describe("odds ingestion", () => {
@@ -23,5 +23,13 @@ describe("odds ingestion", () => {
     const normalized = normalizeOddsProbabilities({ ...snapshot, outcomeProbabilitiesBps: [1, 1, 1] });
     expect(normalized.reduce((sum, probability) => sum + probability, 0)).toBe(10_000);
     expect(normalized).toEqual([3334, 3333, 3333]);
+  });
+
+  test("builds provider exact score odds with source outcome identifiers", () => {
+    const odds = buildDemoExactScoreOdds({ fixtureId: "demo-2026-001" });
+    expect(odds.marketType).toBe("exact_score");
+    expect(odds.provider).toBe("provider_a");
+    expect(odds.outcomes.find((outcome) => outcome.label === "1-0")?.providerOutcomeId).toBe("provider_a:correct_score:1-0");
+    expect(odds.outcomes.find((outcome) => outcome.label === "Other score")?.status).toBe("available");
   });
 });

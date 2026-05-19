@@ -20,6 +20,7 @@ contract WorldCupMarket {
     address public immutable factory;
     bytes32 public immutable marketId;
     bytes32 public immutable conditionId;
+    uint256 public immutable outcomeCount;
     string public marketKey;
     string public fixtureId;
     uint256 public immutable windowStartMatchSecond;
@@ -54,7 +55,8 @@ contract WorldCupMarket {
         string memory fixtureId_,
         uint256 windowStartMatchSecond_,
         uint256 windowEndMatchSecond_,
-        uint256 closeTime_
+        uint256 closeTime_,
+        uint256 outcomeCount_
     ) {
         collateral = collateral_;
         ctf = ctf_;
@@ -62,6 +64,7 @@ contract WorldCupMarket {
         factory = msg.sender;
         marketId = marketId_;
         conditionId = conditionId_;
+        outcomeCount = outcomeCount_;
         marketKey = marketKey_;
         fixtureId = fixtureId_;
         windowStartMatchSecond = windowStartMatchSecond_;
@@ -72,7 +75,7 @@ contract WorldCupMarket {
 
     function buy(uint256 outcomeIndex, uint256 collateralAmount, uint256 minSharesOut) external returns (uint256 sharesOut) {
         _requireTradingOpen();
-        if (outcomeIndex > 1) revert InvalidOutcome();
+        _requireValidOutcome(outcomeIndex);
         sharesOut = collateralAmount;
         if (sharesOut < minSharesOut) revert SlippageExceeded();
         collateral.transferFrom(msg.sender, address(this), collateralAmount);
@@ -83,7 +86,7 @@ contract WorldCupMarket {
 
     function sell(uint256 outcomeIndex, uint256 sharesAmount, uint256 minCollateralOut) external returns (uint256 collateralOut) {
         _requireTradingOpen();
-        if (outcomeIndex > 1) revert InvalidOutcome();
+        _requireValidOutcome(outcomeIndex);
         collateralOut = sharesAmount;
         if (collateralOut < minCollateralOut) revert SlippageExceeded();
         ctf.burnPosition(msg.sender, conditionId, outcomeIndex, sharesAmount);
@@ -102,10 +105,10 @@ contract WorldCupMarket {
     }
 
     function finalizeResult(uint8 winningOutcome_) external onlyOracle {
-        if (winningOutcome_ > 1) revert InvalidOutcome();
+        _requireValidOutcome(winningOutcome_);
         winningOutcome = winningOutcome_;
         status = Status.Redeemable;
-        uint256[] memory payouts = new uint256[](2);
+        uint256[] memory payouts = new uint256[](outcomeCount);
         payouts[winningOutcome_] = 1;
         ctf.reportPayouts(conditionId, payouts);
         emit ResultFinalized(marketId, winningOutcome_, payouts, 1);
@@ -119,7 +122,7 @@ contract WorldCupMarket {
 
     function redeem(uint256 outcomeIndex, uint256 sharesAmount) external returns (uint256 collateralPaid) {
         if (status != Status.Redeemable) revert NotRedeemable();
-        if (outcomeIndex > 1) revert InvalidOutcome();
+        _requireValidOutcome(outcomeIndex);
         ctf.burnPosition(msg.sender, conditionId, outcomeIndex, sharesAmount);
         collateralPaid = outcomeIndex == winningOutcome ? sharesAmount : 0;
         if (collateralPaid > 0) collateral.transfer(msg.sender, collateralPaid);
@@ -128,7 +131,7 @@ contract WorldCupMarket {
 
     function refund(uint256 outcomeIndex, uint256 sharesAmount) external returns (uint256 collateralPaid) {
         if (status != Status.Voided) revert NotVoid();
-        if (outcomeIndex > 1) revert InvalidOutcome();
+        _requireValidOutcome(outcomeIndex);
         ctf.burnPosition(msg.sender, conditionId, outcomeIndex, sharesAmount);
         collateralPaid = sharesAmount;
         collateral.transfer(msg.sender, collateralPaid);
@@ -137,6 +140,10 @@ contract WorldCupMarket {
 
     function _requireTradingOpen() internal view {
         if (block.timestamp >= closeTime || status != Status.LiveTrading) revert TradingClosed();
+    }
+
+    function _requireValidOutcome(uint256 outcomeIndex) internal view {
+        if (outcomeIndex >= outcomeCount) revert InvalidOutcome();
     }
 
     modifier onlyOracle() {

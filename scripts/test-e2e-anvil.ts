@@ -1,7 +1,7 @@
 import { mkdir } from "node:fs/promises";
 import { readFileSync } from "node:fs";
-import { InMemoryDb } from "@worldcup/db";
-import { DEMO_FIXTURE_ID } from "@worldcup/shared";
+import { InMemoryDb } from "@polygoal/db";
+import { DEMO_FIXTURE_ID } from "@polygoal/shared";
 import { createApiApp } from "../apps/api/src/app";
 import { createAppContext, createAppContextFromEnv } from "../apps/api/src/services/app-context";
 import { demoMarketCreatedEvent, handleMarketCreated, handleRedeemed, handleResultFinalized, handleResultProposed, handleTradeExecuted } from "../apps/indexer/src/event-handlers";
@@ -82,16 +82,16 @@ handleTradeExecuted(indexerDb, { marketId: marketBody.market.id, trader: "0x0000
 await post(app, "/admin/sync/live-events", { fixtureId: DEMO_FIXTURE_ID, mode: "demo_goal" });
 const liveComparison = await post<{ status: string; criticalMismatchCount: number }>(app, "/admin/data-quality/live-events/compare", { fixtureId: DEMO_FIXTURE_ID, windowStartMatchSecond: 3780, windowEndMatchSecond: 4380 });
 const proposalBody = await post<{ proposal: { winningOutcome: number; goalCountInWindow: number; txHash?: string } }>(app, "/admin/results/propose", { marketId: marketBody.market.id, evidenceUri: "demo://fixture/demo-2026-001/events" });
-handleResultProposed(indexerDb, { marketId: marketBody.market.id, winningOutcome: 0, goalCountInWindow: 1, evidenceUri: "demo://fixture/demo-2026-001/events", txHash: (proposalBody.proposal.txHash ?? "0x000000000000000000000000000000000000000000000000000000000000beef") as `0x${string}` });
+handleResultProposed(indexerDb, { marketId: marketBody.market.id, winningOutcome: 1, goalCountInWindow: 1, evidenceUri: "demo://fixture/demo-2026-001/events", txHash: (proposalBody.proposal.txHash ?? "0x000000000000000000000000000000000000000000000000000000000000beef") as `0x${string}` });
 await post(app, "/admin/results/finalize", { marketId: marketBody.market.id });
-handleResultFinalized(indexerDb, { marketId: marketBody.market.id, winningOutcome: 0 });
-handleRedeemed(indexerDb, { marketId: marketBody.market.id, user: "0x0000000000000000000000000000000000000aaa", outcomeIndex: 0, sharesBurned: "100000000", collateralPaid: "100000000" });
+handleResultFinalized(indexerDb, { marketId: marketBody.market.id, winningOutcome: 1 });
+handleRedeemed(indexerDb, { marketId: marketBody.market.id, user: "0x0000000000000000000000000000000000000bbb", outcomeIndex: 1, sharesBurned: "100000000", collateralPaid: "100000000" });
 
 const finalMarket = await apiCtx.db.getMarket(marketBody.market.id);
 if (!health.ok) throw new Error("API health failed");
 if (dataQuality.status !== "verified" || dataQuality.criticalMismatchCount !== 0) throw new Error("Fixture data quality failed");
 if (liveComparison.status !== "verified") throw new Error("Live event data quality failed");
-if (proposalBody.proposal.winningOutcome !== 0 || proposalBody.proposal.goalCountInWindow !== 1) throw new Error("Proposal result mismatch");
+if (proposalBody.proposal.winningOutcome !== 1 || proposalBody.proposal.goalCountInWindow !== 1) throw new Error("Proposal result mismatch");
 if (finalMarket?.oracleState !== "finalized") throw new Error("Market did not finalize");
 if (indexerDb.state.trades.length !== 2) throw new Error("Expected two indexed trades");
 if (indexerDb.state.redemptions[0]?.collateralPaidRaw !== "100000000") throw new Error("Winner redemption missing");
@@ -130,7 +130,7 @@ const report = {
     marketId: marketBody.market.id,
     marketAddress: finalMarket?.marketAddress,
     status: finalMarket?.status,
-    winningOutcome: "Yes",
+    winningOutcome: "Draw",
   },
   trades: { count: indexerDb.state.trades.length },
   redemptions: { winnerPaid: indexerDb.state.redemptions[0]?.collateralPaidRaw },

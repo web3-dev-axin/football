@@ -1,5 +1,5 @@
 {
-  "name": "worldcup-prediction-market",
+  "name": "polygoal",
   "private": true,
   "type": "module",
   "workspaces": [
@@ -13,9 +13,11 @@
     "dev:indexer": "bun --cwd apps/indexer dev",
     "dev:anvil": "anvil --chain-id 31337 --host 0.0.0.0 --port 8545",
     "deploy:local": "forge script contracts/script/Deploy.s.sol --rpc-url http://localhost:8545 --broadcast",
+    "deploy:xlayer:infra": "bun scripts/deploy-xlayer-infra.ts",
+    "deploy:xlayer:markets": "bun scripts/deploy-xlayer-markets.ts",
     "test": "bun run test:contracts && bun run test:ts",
     "test:contracts": "forge test -vvv --root contracts",
-    "test:ts": "bun test packages apps scripts",
+    "test:ts": "DATABASE_URL= bun test packages apps scripts",
     "test:web:responsive": "bun --cwd apps/web test:responsive",
     "test:e2e:anvil": "bun scripts/test-e2e-anvil.ts",
     "test:postgres": "bun scripts/test-postgres-real.ts",
@@ -39,6 +41,8 @@
     "test:performance": "bun scripts/test-performance.ts",
     "test:full": "bun run typecheck && bun run lint && bun run test && bun run coverage && bun run contracts:flow && bun run test:e2e:anvil && bun run test:commercial-matrix && bun run test:security && bun run test:performance && bun run import:official && bun run import:odds",
     "review-fix": "bun scripts/review-fix.ts",
+    "seed:demo-portfolio": "bun scripts/seed-demo-portfolio.ts",
+    "seed:onchain-portfolio": "bun scripts/seed-onchain-portfolio.ts",
     "contracts:flow": "bun scripts/contracts-full-flow.ts",
     "contracts:build": "forge build --root contracts",
     "contracts:test": "forge test -vvv --root contracts",
@@ -66,11 +70,11 @@
     "swagger-ui-dist": "^5.32.6",
     "tsx": "^4.21.0",
     "viem": "^2.48.11",
-    "@worldcup/shared": "workspace:*",
-    "@worldcup/config": "workspace:*",
-    "@worldcup/db": "workspace:*",
-    "@worldcup/sdk": "workspace:*",
-    "@worldcup/odds-ingestion": "workspace:*"
+    "@polygoal/shared": "workspace:*",
+    "@polygoal/config": "workspace:*",
+    "@polygoal/db": "workspace:*",
+    "@polygoal/sdk": "workspace:*",
+    "@polygoal/odds-ingestion": "workspace:*"
   },
   "devDependencies": {
     "@types/bun": "latest",

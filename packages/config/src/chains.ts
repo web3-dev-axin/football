@@ -1,4 +1,4 @@
-import { DEFAULT_CHAIN_ID } from "@worldcup/shared";
+import { DEFAULT_CHAIN_ID } from "@polygoal/shared";
 
 export const anvilChain = {
   id: DEFAULT_CHAIN_ID,
