@@ -1,0 +1,70 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "allowJs": false,
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@worldcup/shared": [
+        "packages/shared/src/index.ts"
+      ],
+      "@worldcup/shared/*": [
+        "packages/shared/src/*"
+      ],
+      "@worldcup/config": [
+        "packages/config/src/index.ts"
+      ],
+      "@worldcup/config/*": [
+        "packages/config/src/*"
+      ],
+      "@worldcup/db": [
+        "packages/db/src/index.ts"
+      ],
+      "@worldcup/db/*": [
+        "packages/db/src/*"
+      ],
+      "@worldcup/sdk": [
+        "packages/sdk/src/index.ts"
+      ],
+      "@worldcup/sdk/*": [
+        "packages/sdk/src/*"
+      ],
+      "@worldcup/odds-ingestion": [
+        "packages/odds-ingestion/src/index.ts"
+      ],
+      "@worldcup/odds-ingestion/*": [
+        "packages/odds-ingestion/src/*"
+      ]
+    },
+    "ignoreDeprecations": "6.0",
+    "types": [
+      "bun"
+    ]
+  },
+  "include": [
+    "apps/**/*.ts",
+    "apps/**/*.tsx",
+    "packages/**/*.ts",
+    "scripts/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "contracts/out",
+    "contracts/cache",
+    ".next"
+  ]
+}

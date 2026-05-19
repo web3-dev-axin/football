@@ -1,0 +1,18 @@
+{
+  "name": "@worldcup/db",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "migrate": "bun src/migrate.ts",
+    "seed:test": "bun src/seed.ts",
+    "test": "bun test test"
+  },
+  "dependencies": {
+    "@worldcup/odds-ingestion": "workspace:*",
+    "@worldcup/shared": "workspace:*",
+    "postgres": "^3.4.7"
+  }
+}

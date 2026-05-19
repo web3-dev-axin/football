@@ -1,0 +1,11 @@
+{
+  "name": "@worldcup/config",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "dependencies": {
+    "@worldcup/shared": "workspace:*"
+  }
+}

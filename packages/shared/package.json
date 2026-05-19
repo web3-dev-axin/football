@@ -1,0 +1,8 @@
+{
+  "name": "@worldcup/shared",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  }
+}

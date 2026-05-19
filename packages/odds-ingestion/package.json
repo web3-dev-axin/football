@@ -1,0 +1,11 @@
+{
+  "name": "@worldcup/odds-ingestion",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "test": "bun test src"
+  },
+  "dependencies": {
+    "@worldcup/shared": "workspace:*"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "@worldcup/sdk",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "dependencies": {
+    "@worldcup/shared": "workspace:*",
+    "viem": "^2.48.11"
+  }
+}

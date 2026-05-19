@@ -1,0 +1,21 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - uses: foundry-rs/foundry-toolchain@v1
+      - run: bun install
+      - run: bun run typecheck
+      - run: bun run lint
+      - run: bun run test
+      - run: bun run coverage
+      - run: bun run test:commercial-matrix
+      - run: bun run test:security
+      - run: bun run test:performance
