@@ -216,14 +216,24 @@ PRIVATE_KEY=0x... bun run deploy:xlayer:infra
 PRIVATE_KEY=0x... bun run deploy:xlayer:markets
 ```
 
-## 部署到 VPS（方案 A：公网前端 + 本地 API）
+## 部署到 VPS（同源 `/api` 反代）
 
-`scripts/deploy-vps-ip-http.sh` 把仓库 rsync 到 VPS，安装 bun / nginx，构建 Next，写一份 `polygoal-web.service` 并配置 nginx：
+```bash
+DEPLOY_HOST=YOUR_VPS_IP ./scripts/deploy-vps-ip-http.sh
+```
 
-- 浏览器 → `http://VPS_IP/` → nginx → `127.0.0.1:3000`（Next）
-- 浏览器 → `http://VPS_IP/api/*` → nginx → `127.0.0.1:8787`（API）
+脚本会 rsync 仓库到 VPS，远端 `scripts/deploy-vps-remote-provision.sh` 执行：
 
-同源 `/api` 同时解决 CORS 与 Chrome Private Network Access 屏蔽，前端代码不再写 `localhost`。SSR 走 `INTERNAL_API_URL=http://127.0.0.1:8787`，直接打 loopback。详见 `docs/deploy-scheme-a-public-frontend-local-api.md`。
+1. 安装 `nginx` / `bun` / Node 20（NodeSource）；分配 `/swapfile-polygoal` 4G。
+2. `bun packages/db/src/seed.ts` 重放 `001_mvp_schema.sql` 并写入 demo 数据。
+3. `cd apps/web && NODE_OPTIONS=--max-old-space-size=2048 bun run build`（注入 `NEXT_PUBLIC_*` 含 X Layer 合约地址）。
+4. 写入并启动三个 systemd unit：
+   - `polygoal-indexer.service` — `bun x ponder start --schema ponder`，索引 X Layer Testnet。
+   - `polygoal-api.service` — `bun apps/api/src/server.ts`，监听 `127.0.0.1:8787`，`PONDER_SCHEMA=ponder`。
+   - `polygoal-web.service` — `node next start -H 127.0.0.1 -p 3000`（Bun + Next 16 RSC 会崩，必须用 Node 20）。
+5. 写入 `/etc/nginx/sites-available/polygoal.conf`：浏览器 `/api/*` → `127.0.0.1:8787`，`/` → `127.0.0.1:3000`，并跑 `curl /health` + `/api/health` smoke。
+
+同源 `/api` 同时绕开跨域和 Chrome PNA；API 仍在 OPTIONS preflight 上兜底 `Access-Control-Allow-Private-Network: true`。完整流程、环境变量、故障排查见 `docs/deploy-scheme-a-public-frontend-local-api.md`。
 
 ## 测试与验证
 
@@ -252,9 +262,8 @@ bun run test:report                  # 汇总报告
 ## 文档入口
 
 - 产品 / 技术方案：`docs/worldcup-2026-evm-prediction-market.md`
-- 开发文档：`docs/development.md`
-- 测试策略：`docs/testing.md`
+- 开发文档：`docs/development.md`（含测试策略、coverage、review-fix 循环）
 - 数据源策略：`docs/data-sources.md`
 - 结算规则：`docs/resolution-rules.md`
 - 比赛胜负优先产品需求：`docs/match-winner-first-requirements.md`
-- 公网前端 + 本地 API 部署：`docs/deploy-scheme-a-public-frontend-local-api.md`
+- 同源 `/api` VPS 部署：`docs/deploy-scheme-a-public-frontend-local-api.md`

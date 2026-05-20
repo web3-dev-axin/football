@@ -137,8 +137,7 @@ polygoal/
   docs/
     worldcup-2026-evm-prediction-market.md
     match-winner-first-requirements.md
-    development.md
-    testing.md
+    development.md                              测试策略、coverage、review-fix 循环并入本文 §13、§16
     data-sources.md
     resolution-rules.md
     deploy-scheme-a-public-frontend-local-api.md
@@ -459,9 +458,10 @@ SSH_TUNNEL_LOCAL_PORT=
 `apps/api/src/app.ts`：
 
 - 注入 `AppContext`（db + 可选 PonderReader）。
-- 注册 CORS（按 `CORS_ALLOWED_ORIGINS` 收紧）。
-- 注入 Chrome Private Network Access 响应头（`Access-Control-Allow-Private-Network: true`，浏览器从公网 origin 调本地服务的 preflight 需要）。
-- 统一 `notFound` 与 `onError`。
+- 中间件顺序：`requestId()` → PNA 响应头补丁 → `cors()` → 业务路由。
+- PNA 补丁包在 `cors()` 之前，是因为 hono 的 `cors()` 在 `OPTIONS` 上会短路返回 204；包装中间件先 `await next()`、再在 OPTIONS preflight 上补 `Access-Control-Allow-Private-Network: true`，覆盖那些显式发请求的浏览器（Chrome ≥ 117）。
+- CORS allow list 由 `CORS_ALLOWED_ORIGINS` 解析（`apps/api/src/env.ts::parseCorsOrigins`），空或 `*` 表示全开，其它逗号分隔白名单。
+- 统一 `notFound` 与 `onError`，统一 `errorBody` 结构。
 
 ### 8.2 PonderReader
 
@@ -588,6 +588,18 @@ PRIVATE_KEY=0x... bun run deploy:xlayer:markets
 - challenge window 结束前不能 finalize。
 - 胜出 outcome 可赎回，失败 outcome payout 为 0。
 - void 后退款不影响已 finalized 交易。
+
+### 9.5 VPS 部署（同源 `/api`）
+
+生产 / dev preview 走单台 VPS 同时跑 indexer + API + Web，浏览器统一同源 `/api/*`，详见 `docs/deploy-scheme-a-public-frontend-local-api.md`。一句话流程：
+
+```bash
+DEPLOY_HOST=YOUR_VPS_IP ./scripts/deploy-vps-ip-http.sh
+```
+
+`scripts/deploy-vps-remote-provision.sh` 在 VPS 上：分配 4G swap → `apt-get install nginx ufw` → 安装 bun + Node 20（NodeSource，**Bun + Next 16 RSC streaming 会触发 `controller[kState].transformAlgorithm` 崩溃，前端必须用 Node 20 跑 `next start`**）→ `bun packages/db/src/seed.ts` 重放 schema + demo 数据 → `NODE_OPTIONS=--max-old-space-size=2048 bun run build`（低内存机器必备）→ 写入三份 systemd unit（`polygoal-indexer.service` / `polygoal-api.service` / `polygoal-web.service`）→ 写入 nginx `polygoal.conf`（`/api/ → 127.0.0.1:8787/`，`/ → 127.0.0.1:3000`）→ smoke `curl /health` + `/api/health`。
+
+通过环境变量（`DEPLOY_HOST` / `CORS_ALLOWED_ORIGINS` / `DATABASE_URL` / `NEXT_PUBLIC_*` / `PONDER_START_BLOCK` 等）控制配置；脚本头部都有默认值，按需覆盖即可。
 
 ## 10. 数据库开发
 

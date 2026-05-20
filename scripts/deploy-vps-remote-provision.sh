@@ -11,7 +11,10 @@ API_UPSTREAM="${API_UPSTREAM:-127.0.0.1:8787}"
 API_HOST="${API_HOST:-127.0.0.1}"
 API_PORT="${API_PORT:-8787}"
 CORS_ALLOWED_ORIGINS="${CORS_ALLOWED_ORIGINS:-*}"
-DATABASE_URL="${DATABASE_URL:-}"
+DATABASE_URL="${DATABASE_URL:-postgres://polygoal:polygoal@127.0.0.1:5432/polygoal}"
+PONDER_SCHEMA="${PONDER_SCHEMA:-ponder}"
+PONDER_START_BLOCK="${PONDER_START_BLOCK:-30743211}"
+PONDER_RPC_URL="${PONDER_RPC_URL:-${NEXT_PUBLIC_RPC_URL}}"
 
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
@@ -39,18 +42,58 @@ ufw --force enable || true
 cd "$REMOTE_DIR"
 bun install
 
+# Seed legacy schema (fixtures, commercial markets, ...) into the database the
+# API + indexer share. Idempotent — re-applies migrations and re-persists the
+# demo state.
+echo "==> Seeding Postgres demo state"
+DATABASE_URL="$DATABASE_URL" bun packages/db/src/seed.ts | tail -5
+
 cd apps/web
 export NEXT_PUBLIC_API_URL NEXT_PUBLIC_CHAIN_ID NEXT_PUBLIC_RPC_URL INTERNAL_API_URL
+export NEXT_PUBLIC_MOCK_USDC_ADDRESS NEXT_PUBLIC_MARKET_FACTORY_ADDRESS NEXT_PUBLIC_ORACLE_ADDRESS NEXT_PUBLIC_CTF_ADDRESS
 # Low-RAM VPS guard rail: cap Node heap so the TS-check worker does not OOM
 # (default heap is sized to host RAM, which is way over what 1 GB boxes have).
 export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=2048}"
 bun run build
 
+INDEXER_SERVICE_PATH=/etc/systemd/system/polygoal-indexer.service
+cat >"$INDEXER_SERVICE_PATH" <<UNIT
+[Unit]
+Description=Polygoal Ponder Indexer (X Layer testnet)
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+WorkingDirectory=${REMOTE_DIR}/apps/indexer
+Environment=NODE_ENV=production
+Environment=DATABASE_URL=${DATABASE_URL}
+Environment=DATABASE_SCHEMA=${PONDER_SCHEMA}
+Environment=PONDER_SCHEMA=${PONDER_SCHEMA}
+Environment=PONDER_RPC_URL=${PONDER_RPC_URL}
+Environment=PONDER_START_BLOCK=${PONDER_START_BLOCK}
+Environment=NEXT_PUBLIC_RPC_URL=${NEXT_PUBLIC_RPC_URL}
+# Cap heap so Ponder never starves the API on a 1 GB VPS.
+Environment=NODE_OPTIONS=--max-old-space-size=512
+ExecStart=/root/.bun/bin/bun x ponder start --schema ${PONDER_SCHEMA}
+Restart=always
+RestartSec=10
+# Run with low CPU/IO weight so the API + Next never starve.
+CPUWeight=20
+IOWeight=20
+MemoryHigh=400M
+MemoryMax=600M
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
 API_SERVICE_PATH=/etc/systemd/system/polygoal-api.service
 cat >"$API_SERVICE_PATH" <<UNIT
 [Unit]
 Description=Polygoal API (Hono)
-After=network.target
+After=network.target postgresql.service polygoal-indexer.service
+Wants=postgresql.service
 
 [Service]
 Type=simple
@@ -59,7 +102,8 @@ Environment=NODE_ENV=production
 Environment=API_HOST=${API_HOST}
 Environment=API_PORT=${API_PORT}
 Environment=CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
-$( [ -n "$DATABASE_URL" ] && printf 'Environment=DATABASE_URL=%s\n' "$DATABASE_URL" )
+Environment=DATABASE_URL=${DATABASE_URL}
+Environment=PONDER_SCHEMA=${PONDER_SCHEMA}
 ExecStart=/root/.bun/bin/bun src/server.ts
 Restart=always
 RestartSec=5
@@ -137,13 +181,16 @@ nginx -t
 systemctl reload nginx
 
 systemctl daemon-reload
-systemctl enable polygoal-api.service polygoal-web.service
+systemctl enable polygoal-indexer.service polygoal-api.service polygoal-web.service
+systemctl restart polygoal-indexer.service
 systemctl restart polygoal-api.service
 systemctl restart polygoal-web.service
-sleep 2
-systemctl --no-pager --full status polygoal-api.service || true
-systemctl --no-pager --full status polygoal-web.service || true
+sleep 3
+systemctl --no-pager --full status polygoal-indexer.service | head -8 || true
+systemctl --no-pager --full status polygoal-api.service | head -8 || true
+systemctl --no-pager --full status polygoal-web.service | head -8 || true
 
 echo "==> Smoke checks"
 curl -fsS -m 5 "http://127.0.0.1:${API_PORT}/health" && echo " api: ok" || echo " api: FAILED"
 curl -fsS -m 5 "http://127.0.0.1/api/health" && echo " nginx /api: ok" || echo " nginx /api: FAILED"
+echo "==> Indexer note: Ponder needs to scan from block ${PONDER_START_BLOCK}. Progress: journalctl -u polygoal-indexer -f"

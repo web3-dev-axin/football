@@ -1402,8 +1402,7 @@ polygoal/
   docs/
     worldcup-2026-evm-prediction-market.md
     match-winner-first-requirements.md
-    development.md
-    testing.md
+    development.md                              测试策略 / coverage / review-fix 循环并入 §13、§16
     data-sources.md
     resolution-rules.md
     deploy-scheme-a-public-frontend-local-api.md
@@ -1610,12 +1609,12 @@ polygoal/
 - 数据冲突必须以醒目 badge 呈现，并禁用交易或结算动作。
 - 移动端交易面板必须可单手完成选择 outcome、输入金额、确认交易。
 
-UI 素材策略：
+UI 技术栈：
 
-- shadcn/ui 作为基础组件系统。
-- Uiverse 用于微交互和动效灵感。
-- DesignPrompts 用于页面视觉探索。
-- 最终代码必须统一 Tailwind token、暗色主题、响应式布局和可访问性。
+- 基础组件系统：HeroUI v3（`@heroui/react` + `framer-motion`），所有「卡片型」容器统一 `<Card>` + `Card.Header / Card.Content / Card.Footer`，状态徽标用 `<Chip>`。
+- Token：集中在 `apps/web/app/globals.css`，同时覆盖 HeroUI 主题变量（`--accent / --success / --warning / --danger / --focus / --radius`），自定义动画 / 滚动条 / 品牌色保留命名空间。
+- Tailwind v4 + `@tailwindcss/postcss`，处理 HeroUI 的 `@apply`。
+- 微交互 / 视觉灵感参考 Uiverse / DesignPrompts；最终代码必须统一 token、暗色主题优先、响应式与可访问性。
 
 ## 20. 生产运维与 SLO
 
@@ -1673,10 +1672,13 @@ SLO 建议：
 ### 21.3 V2：X Layer Testnet 公开演示（当前阶段）
 
 - 部署 World Cup 2026 48 场小组赛 `match_winner` 市场（`deployments/xlayer-testnet.json`）。
-- Ponder 索引 + API 透明叠加链上状态。
+- Ponder 索引 + API 透明叠加链上状态（`polygoal-indexer.service` / `polygoal-api.service` / `polygoal-web.service` 三件套同台部署）。
 - match-winner-first 前端 IA 落地（无 goal-window 入口）。
-- VPS 部署脚本（`scripts/deploy-vps-ip-http.sh`）+ 同源 `/api` 反代。
+- VPS 部署一键脚本（`scripts/deploy-vps-ip-http.sh` → `deploy-vps-remote-provision.sh`）+ 同源 `/api` 反代 + Chrome PNA 响应头兜底。
+- 低内存 VPS 守护：4G swap + `NODE_OPTIONS=--max-old-space-size=2048` + Node 20 跑 `next start`（Bun + Next 16 RSC streaming 会触发 `controller[kState].transformAlgorithm` 崩溃）。
 - 商业 demo 钱包灌入工具（`bun run seed:demo-portfolio`）。
+- 部署后 smoke：`/health` + `/api/health` 验证（脚本自动跑）。
+- 详情见 `docs/deploy-scheme-a-public-frontend-local-api.md`。
 
 ### 21.4 V3：商业 beta
 

@@ -29,7 +29,7 @@ close time：`kickoffAtUtc + 105 分钟`（覆盖常规时间 + 补时 + 安全 
 
 ## 2. Exact Score（次级市场）
 
-Policy code：`full_time_exact_score_excluding_extra_time_and_penalties`
+Policy code：`full_time_exact_score_or_other_score`
 
 适用市场：`fixture:<fifaMatchId>:exact_score`，outcome count = 10（默认）。
 
