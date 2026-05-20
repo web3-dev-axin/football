@@ -22,6 +22,14 @@ export function createApiApp(
   const corsOrigins = options.corsOrigins ?? loadApiEnv().corsOrigins;
 
   app.use("*", requestId());
+  // Chrome Private Network Access: wrap cors() so we can stamp the header onto
+  // the 204 response that cors short-circuits on OPTIONS.
+  app.use("*", async (c, next) => {
+    await next();
+    if (c.req.header("access-control-request-private-network") === "true") {
+      c.res.headers.set("Access-Control-Allow-Private-Network", "true");
+    }
+  });
   app.use(
     "*",
     cors({
@@ -32,13 +40,6 @@ export function createApiApp(
       maxAge: 600,
     }),
   );
-  // Chrome Private Network Access: preflight from public origin → private/loopback target.
-  app.use("*", async (c, next) => {
-    await next();
-    if (c.req.header("access-control-request-private-network") === "true") {
-      c.res.headers.set("Access-Control-Allow-Private-Network", "true");
-    }
-  });
 
   registerHealthRoutes(app);
   registerPublicRoutes(app, ctx);

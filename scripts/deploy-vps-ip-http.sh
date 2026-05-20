@@ -59,6 +59,10 @@ rsync -az --protocol=29 --delete \
 echo "==> Provisioning remote (apt, bun, nginx, systemd)"
 REMOTE_PROVISION="${REMOTE_DIR}/scripts/deploy-vps-remote-provision.sh"
 "${SSH_CMD[@]}" chmod +x "$REMOTE_PROVISION"
+CORS_ALLOWED_ORIGINS_DEFAULT="http://${DEPLOY_HOST}"
+CORS_ALLOWED_ORIGINS="${CORS_ALLOWED_ORIGINS:-$CORS_ALLOWED_ORIGINS_DEFAULT}"
+DATABASE_URL="${DATABASE_URL:-}"
+
 # shellcheck disable=SC2029
 "${SSH_CMD[@]}" env \
   REMOTE_DIR="$REMOTE_DIR" \
@@ -67,6 +71,8 @@ REMOTE_PROVISION="${REMOTE_DIR}/scripts/deploy-vps-remote-provision.sh"
   NEXT_PUBLIC_RPC_URL="$NEXT_PUBLIC_RPC_URL" \
   INTERNAL_API_URL="$INTERNAL_API_URL" \
   API_UPSTREAM="$API_UPSTREAM" \
+  CORS_ALLOWED_ORIGINS="$CORS_ALLOWED_ORIGINS" \
+  DATABASE_URL="$DATABASE_URL" \
   bash "$REMOTE_PROVISION"
 
 echo ""
