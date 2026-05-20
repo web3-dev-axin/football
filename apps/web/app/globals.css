@@ -432,8 +432,9 @@ main {
   outline: none;
 }
 
-.kpi { color: rgba(255, 255, 255, 0.7); font-size: 15px; line-height: 1.6; overflow-wrap: anywhere; }
-.page-hero .kpi strong { color: var(--color-brand-bright); }
+.kpi { color: var(--color-muted); font-size: 15px; line-height: 1.6; overflow-wrap: anywhere; }
+.page-hero > .hero-copy .kpi { color: rgba(255, 255, 255, 0.7); }
+.page-hero > .hero-copy .kpi strong { color: var(--color-brand-bright); }
 
 .two-col { display: grid; grid-template-columns: minmax(0, 2fr) minmax(300px, 1fr); gap: 20px; align-items: start; }
 .trade-layout > .trade-panels { align-content: start; position: sticky; top: 96px; }
@@ -1000,10 +1001,10 @@ main {
 .hero-aside > .card,
 .hero-aside > .balance-faucet {
   margin: 0;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(8px);
-  border-color: rgba(255, 255, 255, 0.2);
+  background: #ffffff;
+  border: 1px solid var(--color-line);
   border-radius: 16px;
+  box-shadow: var(--shadow-card);
 }
 
 @media (max-width: 900px) {
@@ -2211,8 +2212,54 @@ main {
   align-items: stretch;
 }
 .position-group { gap: 14px; }
-.balance-faucet { gap: 8px; }
-.balance-faucet-value { font-family: var(--font-display); font-size: clamp(24px, 3vw, 32px); font-variant-numeric: tabular-nums; }
+.balance-faucet { 
+  gap: 16px; 
+  padding: 24px !important;
+  position: relative;
+  overflow: hidden;
+}
+.balance-faucet::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--color-brand), var(--color-brand-dark));
+}
+.balance-faucet > div:first-child {
+  display: grid;
+  gap: 6px;
+}
+.balance-faucet .kpi {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-brand-dark);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.balance-faucet-value { 
+  font-family: var(--font-display); 
+  font-size: clamp(32px, 4vw, 40px); 
+  font-weight: 700;
+  font-variant-numeric: tabular-nums; 
+  color: var(--color-ink);
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+.balance-faucet .button.secondary {
+  background: var(--color-brand-dark);
+  color: #ffffff;
+  border: none;
+  font-weight: 600;
+}
+.balance-faucet .button.secondary:hover {
+  background: var(--color-brand);
+}
+.balance-faucet .button.secondary:disabled {
+  background: var(--color-line);
+  color: var(--color-muted);
+}
 
 /* Position card — HeroUI <Card> shell + brand overlay (3–4 per row) */
 .position-card-item {
