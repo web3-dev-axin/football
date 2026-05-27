@@ -21,81 +21,60 @@ export function FixtureRow({ fixture, hasMatchWinner = false, hasExactScore = fa
   const kickoff = new Date(fixture.kickoffAtUtc);
   const kickoffTime = kickoff.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
   const kickoffDate = kickoff.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
-  const countdown = !isLive && !isFinal ? humanCountdown(kickoff.getTime() - Date.now()) : null;
 
   return (
     <Card variant="default" className={`fixture-card${isLive ? " is-live" : ""}${isFinal ? " is-final" : ""}`}>
-      <header className="fixture-card-top">
-        <span className="fixture-card-eyebrow">
-          <span className="fixture-card-match-no">Match {fixture.matchNumber}</span>
-          {countdown ? <span className="fixture-card-countdown">in {countdown}</span> : null}
-        </span>
-        {isLive ? (
-          <span className="fixture-card-status live">
-            <span className="fixture-card-status-dot" aria-hidden />
-            Live · {fixture.displayClock}
-          </span>
-        ) : isFinal ? (
-          <span className="fixture-card-status final">Full time</span>
-        ) : (
-          <span className="fixture-card-status scheduled">
-            <strong>{kickoffTime}</strong>
-            <small>{kickoffDate}</small>
-          </span>
-        )}
+      <header className="market-card-header">
+        <div>
+          <span className="market-code">Match {fixture.matchNumber}</span>
+          <h3>{fixture.homeTeam} vs {fixture.awayTeam}</h3>
+        </div>
+        <button className="watch-button" type="button">Watch</button>
       </header>
 
-      <Link className="fixture-card-board" href={fixtureMarketHref} aria-label={`Open ${fixture.homeTeam} vs ${fixture.awayTeam}`} prefetch={false}>
-        <div className="fixture-card-team">
-          <span className="fixture-card-flag" aria-hidden>{home.flag}</span>
-          <span className="fixture-card-team-name">{fixture.homeTeam}</span>
-          <span className="fixture-card-team-code">{home.code}</span>
-        </div>
-
-        <div className="fixture-card-center">
-          {isLive || isFinal ? (
-            <div className="fixture-card-score">
-              <span>{fixture.homeScore}</span>
-              <span className="fixture-card-score-sep">:</span>
-              <span>{fixture.awayScore}</span>
-            </div>
-          ) : (
-            <span className="fixture-card-vs">VS</span>
-          )}
-        </div>
-
-        <div className="fixture-card-team away">
-          <span className="fixture-card-flag" aria-hidden>{away.flag}</span>
-          <span className="fixture-card-team-name">{fixture.awayTeam}</span>
-          <span className="fixture-card-team-code">{away.code}</span>
-        </div>
+      <Link 
+        className="fixture-line" 
+        href={fixtureMarketHref} 
+        style={{ "--home-share": "33%", "--draw-share": "34%" } as React.CSSProperties}
+        prefetch={false}
+      >
+        <span className="flag-icon">{home.flag}</span>
+        <span className="versus">
+          {isLive || isFinal ? `${fixture.homeScore} : ${fixture.awayScore}` : kickoffDate}
+        </span>
+        <span className="flag-icon">{away.flag}</span>
       </Link>
 
-      <div className="fixture-card-meta">
-        <span className="fixture-card-meta-item">
-          <span className="fixture-card-meta-icon" aria-hidden>📍</span>
-          {fixture.venue}
-        </span>
+      <div className="market-meta">
+        <span>{isLive ? `Live ${fixture.displayClock}` : kickoffTime}</span>
+        <span>{fixture.venue}</span>
       </div>
 
-      <footer className="fixture-card-actions">
-        {hasMatchWinner ? (
-          <Link className="fixture-card-action primary" href={fixtureMarketHref} prefetch={false}>
-            <span className="fixture-card-action-label">Match winner</span>
-            <span className="fixture-card-action-meta">3 outcomes</span>
-            <span className="fixture-card-action-arrow" aria-hidden>→</span>
+      {hasMatchWinner ? (
+        <div className="probability-list">
+          <Link href={fixtureMarketHref} className="probability-button yes" prefetch={false}>
+            <span>{home.code}</span>
+            <strong>33c</strong>
           </Link>
-        ) : null}
-        {hasExactScore ? (
-          <Link className="fixture-card-action" href={exactScoreHref} prefetch={false}>
-            <span className="fixture-card-action-label">Exact score</span>
-            <span className="fixture-card-action-meta">10 outcomes</span>
-            <span className="fixture-card-action-arrow" aria-hidden>→</span>
+          <Link href={fixtureMarketHref} className="probability-button neutral" prefetch={false}>
+            <span>Draw</span>
+            <strong>34c</strong>
           </Link>
-        ) : null}
-        {!hasMatchWinner && !hasExactScore ? (
+          <Link href={fixtureMarketHref} className="probability-button no" prefetch={false}>
+            <span>{away.code}</span>
+            <strong>33c</strong>
+          </Link>
+        </div>
+      ) : (
+        <div className="probability-list">
           <span className="fixture-card-pending">Markets open at kickoff</span>
-        ) : null}
+        </div>
+      )}
+
+      <footer className="market-card-footer">
+        {hasMatchWinner ? <Link href={fixtureMarketHref} prefetch={false}>Match winner</Link> : null}
+        {hasExactScore ? <Link href={exactScoreHref} prefetch={false}>Exact score</Link> : null}
+        {!hasMatchWinner && !hasExactScore ? <span>Coming soon</span> : null}
       </footer>
     </Card>
   );

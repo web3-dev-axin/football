@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PolyGoal - World Cup Prediction Markets</title>
+    <meta
+      name="description"
+      content="PolyGoal market homepage concept for World Cup 2026 prediction markets."
+    />
+    <link rel="icon" type="image/png" href="assets/logo-mark-green.png" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="#" aria-label="PolyGoal home">
+        <img src="assets/logo-mark-green.png" alt="" />
+        <span>polygoal</span>
+      </a>
+
+      <nav class="main-nav" aria-label="Primary navigation">
+        <a class="nav-link is-active" href="#">Markets</a>
+        <a class="nav-link" href="#">Live</a>
+        <a class="nav-link" href="#">Portfolio</a>
+        <a class="nav-link" href="#">Settlements</a>
+      </nav>
+
+      <div class="header-actions">
+        <label class="search-shell">
+          <span class="search-dot" aria-hidden="true"></span>
+          <input id="marketSearch" type="search" placeholder="Search teams, markets" />
+        </label>
+        <button class="wallet-button" type="button">
+          Connect wallet
+          <span>X Layer</span>
+        </button>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero-board" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <div class="eyebrow">World Cup 2026 markets</div>
+          <h1 id="hero-title">Trade the match before odds move.</h1>
+          <p>
+            Live winner, draw, and exact-score markets for every fixture. Prices update
+            with the game clock, liquidity, and crowd conviction.
+          </p>
+          <div class="hero-stats" aria-label="Market statistics">
+            <span><strong>$8.4M</strong> 24h volume</span>
+            <span><strong>72</strong> fixtures</span>
+            <span><strong>1</strong> live now</span>
+          </div>
+        </div>
+
+        <article class="featured-market" aria-label="Featured live market">
+          <div class="featured-topline">
+            <span class="live-pill"><span></span> Live 63:00</span>
+            <span class="liquidity">$2.1M Liquidity</span>
+          </div>
+
+          <div class="score-strip" style="--home-share: 54%; --draw-share: 25%">
+            <div class="team-block">
+              <span class="flag-icon"><img src="assets/flags/br.svg" alt="Brazil flag" /></span>
+              <strong>Brazil</strong>
+              <small>Group A</small>
+            </div>
+            <div class="score-clock">
+              <strong>0 : 0</strong>
+              <span>New York New Jersey Stadium</span>
+            </div>
+            <div class="team-block align-right">
+              <span class="flag-icon"><img src="assets/flags/ma.svg" alt="Morocco flag" /></span>
+              <strong>Morocco</strong>
+              <small>Group A</small>
+            </div>
+          </div>
+
+          <div class="odds-stack">
+            <button class="odds-row is-leading" type="button" data-choice="Brazil">
+              <span>Brazil wins</span>
+              <span class="bar" style="--value: 54%"></span>
+              <strong>54%</strong>
+            </button>
+            <button class="odds-row" type="button" data-choice="Draw">
+              <span>Draw</span>
+              <span class="bar" style="--value: 25%"></span>
+              <strong>25%</strong>
+            </button>
+            <button class="odds-row" type="button" data-choice="Morocco">
+              <span>Morocco wins</span>
+              <span class="bar" style="--value: 21%"></span>
+              <strong>21%</strong>
+            </button>
+          </div>
+
+          <div class="trade-actions">
+            <button class="trade-button yes" type="button">Buy Yes 54c</button>
+            <button class="trade-button no" type="button">Buy No 46c</button>
+          </div>
+        </article>
+      </section>
+
+      <section class="control-row" aria-label="Market filters">
+        <div class="chip-group" data-filter-group="category">
+          <button class="chip is-active" type="button" data-filter="all">All</button>
+          <button class="chip" type="button" data-filter="live">Live</button>
+          <button class="chip" type="button" data-filter="winner">Match winner</button>
+          <button class="chip" type="button" data-filter="exact">Exact score</button>
+          <button class="chip" type="button" data-filter="popular">High volume</button>
+        </div>
+        <div class="chip-group date-chips" data-filter-group="date">
+          <button class="date-chip is-active" type="button">Today <span>1 live</span></button>
+          <button class="date-chip" type="button">Thu, Jun 11 <span>3 matches</span></button>
+          <button class="date-chip" type="button">Fri, Jun 12 <span>8 matches</span></button>
+          <button class="date-chip" type="button">Sat, Jun 13 <span>8 matches</span></button>
+        </div>
+      </section>
+
+      <section class="market-layout" aria-label="Prediction market overview">
+        <div class="market-main">
+          <div class="section-heading">
+            <div>
+              <span class="heading-kicker">Featured markets</span>
+              <h2>Live and upcoming fixtures</h2>
+            </div>
+            <button class="quiet-button" type="button">View all markets</button>
+          </div>
+
+          <div class="market-grid" id="marketGrid">
+            <article class="market-card is-live" data-market-card data-tags="live winner exact brazil morocco popular">
+              <header class="market-card-header">
+                <div>
+                  <span class="market-code">Match 1</span>
+                  <h3>Brazil vs Morocco</h3>
+                </div>
+                <button class="watch-button" type="button" aria-label="Watch Brazil vs Morocco">Watch</button>
+              </header>
+              <div class="fixture-line" style="--home-share: 54%; --draw-share: 25%">
+                <span class="flag-icon"><img src="assets/flags/br.svg" alt="Brazil flag" /></span>
+                <span class="versus">0 : 0</span>
+                <span class="flag-icon"><img src="assets/flags/ma.svg" alt="Morocco flag" /></span>
+              </div>
+              <div class="market-meta">
+                <span>Live 63:00</span>
+                <span>$2.1M Vol.</span>
+              </div>
+              <div class="probability-list">
+                <button type="button" class="probability-button yes"><span>Brazil</span><strong>54c</strong></button>
+                <button type="button" class="probability-button neutral"><span>Draw</span><strong>25c</strong></button>
+                <button type="button" class="probability-button no"><span>Morocco</span><strong>21c</strong></button>
+              </div>
+              <footer class="market-card-footer">
+                <a href="#">Match winner</a>
+                <a href="#">Exact score</a>
+              </footer>
+            </article>
+
+            <article class="market-card" data-market-card data-tags="winner exact usa germany popular">
+              <header class="market-card-header">
+                <div>
+                  <span class="market-code">Match 8</span>
+                  <h3>USA vs Germany</h3>
+                </div>
+                <button class="watch-button" type="button" aria-label="Watch USA vs Germany">Watch</button>
+              </header>
+              <div class="fixture-line" style="--home-share: 32%; --draw-share: 24%">
+                <span class="flag-icon"><img src="assets/flags/us.svg" alt="United States flag" /></span>
+                <span class="versus">Jun 11</span>
+                <span class="flag-icon"><img src="assets/flags/de.svg" alt="Germany flag" /></span>
+              </div>
+              <div class="market-meta">
+                <span>9:00 PM ET</span>
+                <span>$1.7M Vol.</span>
+              </div>
+              <div class="probability-list">
+                <button type="button" class="probability-button yes"><span>USA</span><strong>32c</strong></button>
+                <button type="button" class="probability-button neutral"><span>Draw</span><strong>24c</strong></button>
+                <button type="button" class="probability-button no"><span>Germany</span><strong>44c</strong></button>
+              </div>
+              <footer class="market-card-footer">
+                <a href="#">Match winner</a>
+                <a href="#">Exact score</a>
+              </footer>
+            </article>
+
+            <article class="market-card" data-market-card data-tags="winner exact argentina japan">
+              <header class="market-card-header">
+                <div>
+                  <span class="market-code">Match 12</span>
+                  <h3>Argentina vs Japan</h3>
+                </div>
+                <button class="watch-button" type="button" aria-label="Watch Argentina vs Japan">Watch</button>
+              </header>
+              <div class="fixture-line" style="--home-share: 61%; --draw-share: 22%">
+                <span class="flag-icon"><img src="assets/flags/ar.svg" alt="Argentina flag" /></span>
+                <span class="versus">Jun 12</span>
+                <span class="flag-icon"><img src="assets/flags/jp.svg" alt="Japan flag" /></span>
+              </div>
+              <div class="market-meta">
+                <span>6:00 PM ET</span>
+                <span>$980K Vol.</span>
+              </div>
+              <div class="probability-list">
+                <button type="button" class="probability-button yes"><span>Argentina</span><strong>61c</strong></button>
+                <button type="button" class="probability-button neutral"><span>Draw</span><strong>22c</strong></button>
+                <button type="button" class="probability-button no"><span>Japan</span><strong>17c</strong></button>
+              </div>
+              <footer class="market-card-footer">
+                <a href="#">Match winner</a>
+                <a href="#">Exact score</a>
+              </footer>
+            </article>
+
+            <article class="market-card" data-market-card data-tags="winner exact france mexico popular">
+              <header class="market-card-header">
+                <div>
+                  <span class="market-code">Match 18</span>
+                  <h3>France vs Mexico</h3>
+                </div>
+                <button class="watch-button" type="button" aria-label="Watch France vs Mexico">Watch</button>
+              </header>
+              <div class="fixture-line" style="--home-share: 47%; --draw-share: 27%">
+                <span class="flag-icon"><img src="assets/flags/fr.svg" alt="France flag" /></span>
+                <span class="versus">Jun 13</span>
+                <span class="flag-icon"><img src="assets/flags/mx.svg" alt="Mexico flag" /></span>
+              </div>
+              <div class="market-meta">
+                <span>3:00 PM ET</span>
+                <span>$2.6M Vol.</span>
+              </div>
+              <div class="probability-list">
+                <button type="button" class="probability-button yes"><span>France</span><strong>47c</strong></button>
+                <button type="button" class="probability-button neutral"><span>Draw</span><strong>27c</strong></button>
+                <button type="button" class="probability-button no"><span>Mexico</span><strong>26c</strong></button>
+              </div>
+              <footer class="market-card-footer">
+                <a href="#">Match winner</a>
+                <a href="#">Exact score</a>
+              </footer>
+            </article>
+
+            <article class="market-card" data-market-card data-tags="winner exact england senegal">
+              <header class="market-card-header">
+                <div>
+                  <span class="market-code">Match 23</span>
+                  <h3>England vs Senegal</h3>
+                </div>
+                <button class="watch-button" type="button" aria-label="Watch England vs Senegal">Watch</button>
+              </header>
+              <div class="fixture-line" style="--home-share: 58%; --draw-share: 23%">
+                <span class="flag-icon"><img src="assets/flags/gb-eng.svg" alt="England flag" /></span>
+                <span class="versus">Jun 14</span>
+                <span class="flag-icon"><img src="assets/flags/sn.svg" alt="Senegal flag" /></span>
+              </div>
+              <div class="market-meta">
+                <span>12:00 PM ET</span>
+                <span>$730K Vol.</span>
+              </div>
+              <div class="probability-list">
+                <button type="button" class="probability-button yes"><span>England</span><strong>58c</strong></button>
+                <button type="button" class="probability-button neutral"><span>Draw</span><strong>23c</strong></button>
+                <button type="button" class="probability-button no"><span>Senegal</span><strong>19c</strong></button>
+              </div>
+              <footer class="market-card-footer">
+                <a href="#">Match winner</a>
+                <a href="#">Exact score</a>
+              </footer>
+            </article>
+
+            <article class="market-card" data-market-card data-tags="winner exact spain korea">
+              <header class="market-card-header">
+                <div>
+                  <span class="market-code">Match 27</span>
+                  <h3>Spain vs Korea Republic</h3>
+                </div>
+                <button class="watch-button" type="button" aria-label="Watch Spain vs Korea">Watch</button>
+              </header>
+              <div class="fixture-line" style="--home-share: 66%; --draw-share: 20%">
+                <span class="flag-icon"><img src="assets/flags/es.svg" alt="Spain flag" /></span>
+                <span class="versus">Jun 15</span>
+                <span class="flag-icon"><img src="assets/flags/kr.svg" alt="Korea Republic flag" /></span>
+              </div>
+              <div class="market-meta">
+                <span>6:00 AM ET</span>
+                <span>$640K Vol.</span>
+              </div>
+              <div class="probability-list">
+                <button type="button" class="probability-button yes"><span>Spain</span><strong>66c</strong></button>
+                <button type="button" class="probability-button neutral"><span>Draw</span><strong>20c</strong></button>
+                <button type="button" class="probability-button no"><span>Korea</span><strong>14c</strong></button>
+              </div>
+              <footer class="market-card-footer">
+                <a href="#">Match winner</a>
+                <a href="#">Exact score</a>
+              </footer>
+            </article>
+          </div>
+        </div>
+
+        <aside class="insight-rail" aria-label="Market insights">
+          <section class="rail-card wallet-card">
+            <div class="rail-card-heading">
+              <span>Account</span>
+              <strong>X Layer</strong>
+            </div>
+            <div class="balance-line">
+              <small>Available balance</small>
+              <strong>$12,480.50</strong>
+            </div>
+            <button class="full-button" type="button">Deposit USDC</button>
+          </section>
+
+          <section class="rail-card">
+            <div class="rail-card-heading">
+              <span>Trending</span>
+              <strong>24h</strong>
+            </div>
+            <ol class="trend-list">
+              <li><span>France vs Mexico</span><strong>$2.6M</strong></li>
+              <li><span>Brazil vs Morocco</span><strong>$2.1M</strong></li>
+              <li><span>USA vs Germany</span><strong>$1.7M</strong></li>
+              <li><span>Argentina vs Japan</span><strong>$980K</strong></li>
+            </ol>
+          </section>
+
+          <section class="rail-card">
+            <div class="rail-card-heading">
+              <span>Momentum</span>
+              <strong>Live</strong>
+            </div>
+            <div class="momentum-row">
+              <span>Brazil yes</span>
+              <div class="mini-chart" aria-hidden="true">
+                <i style="height: 28%"></i>
+                <i style="height: 45%"></i>
+                <i style="height: 38%"></i>
+                <i style="height: 72%"></i>
+                <i style="height: 64%"></i>
+                <i style="height: 84%"></i>
+              </div>
+              <strong>+8%</strong>
+            </div>
+            <div class="settlement-note">Oracle window opens after final whistle.</div>
+          </section>
+        </aside>
+      </section>
+
+      <section class="deep-markets" aria-labelledby="deep-title">
+        <div class="section-heading">
+          <div>
+            <span class="heading-kicker">Exact score board</span>
+            <h2 id="deep-title">Most traded scorelines</h2>
+          </div>
+          <button class="quiet-button" type="button">Open score markets</button>
+        </div>
+
+        <div class="score-market-grid">
+          <article class="score-market">
+            <span>Brazil 1-0 Morocco</span>
+            <strong>16c</strong>
+            <small>$188K matched</small>
+          </article>
+          <article class="score-market">
+            <span>USA 1-1 Germany</span>
+            <strong>13c</strong>
+            <small>$144K matched</small>
+          </article>
+          <article class="score-market">
+            <span>France 2-1 Mexico</span>
+            <strong>11c</strong>
+            <small>$121K matched</small>
+          </article>
+          <article class="score-market">
+            <span>Argentina 2-0 Japan</span>
+            <strong>19c</strong>
+            <small>$116K matched</small>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>

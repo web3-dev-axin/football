@@ -1,9 +1,11 @@
 import Link from "next/link";
-import type { CommercialMarketDefinition, Fixture } from "@polygoal/shared";
+import type { Fixture } from "@polygoal/shared";
 import { FixtureRow } from "../components/matches/FixtureRow";
 import { PageHero } from "../components/ui/PageHero";
 import { EmptyState } from "../components/ui/EmptyState";
 import { DayJumper, type DayJumperItem } from "../components/ui/DayJumper";
+import { FeaturedMarket } from "../components/ui/FeaturedMarket";
+import { InsightRail } from "../components/ui/InsightRail";
 import { consumerApi } from "../lib/api-client";
 
 export const dynamic = "force-dynamic";
@@ -115,20 +117,29 @@ export default async function HomePage() {
     });
   }
 
+  const featuredFixture = liveFixtures[0] ?? groups[0]?.items[0];
+  const allFixtures = [...liveFixtures, ...groups.flatMap(g => g.items)];
+  const trendingItems = allFixtures.slice(0, 4).map(f => ({
+    label: `${f.homeTeam} vs ${f.awayTeam}`,
+    value: "$0",
+  }));
+
   return (
     <main className="section-stack">
       <PageHero
-        eyebrow="polygoal"
-        title="World Cup 2026 prediction market"
-        actions={
-          <>
-            <a className="button" href="#live">{liveCount > 0 ? `${liveCount} live match${liveCount === 1 ? "" : "es"}` : "Browse today's pools"}</a>
-            <Link className="button secondary" href="/portfolio" prefetch>My positions</Link>
-          </>
-        }
+        eyebrow="World Cup 2026 markets"
+        title="Trade the match before odds move."
+        aside={featuredFixture ? <FeaturedMarket fixture={featuredFixture} homeOdds={54} drawOdds={25} awayOdds={21} liquidity="$2.1M" /> : undefined}
       >
-        Trade match-winner and exact-score outcomes with USDC collateral.
-        {totalCount > 0 ? <> Tracking <strong>{totalCount}</strong> fixtures — {liveCount > 0 ? `${liveCount} live, ` : ""}{todayCount > 0 ? `${todayCount} today.` : "more matches every kickoff."}</> : null}
+        <p>
+          Live winner, draw, and exact-score markets for every fixture. Prices update
+          with the game clock, liquidity, and crowd conviction.
+        </p>
+        <div className="hero-stats" aria-label="Market statistics">
+          <span><strong>$8.4M</strong> 24h volume</span>
+          <span><strong>{totalCount}</strong> fixtures</span>
+          <span><strong>{liveCount}</strong> live now</span>
+        </div>
       </PageHero>
 
       {loadError ? (
@@ -143,47 +154,63 @@ export default async function HomePage() {
 
       {jumpItems.length > 0 ? <DayJumper items={jumpItems} /> : null}
 
-      {liveCount > 0 ? (
-        <section className="schedule-date-group" id="live">
-          <header className="schedule-date-header is-live">
-            <h2>
-              <span className="schedule-date-live-dot" aria-hidden />
-              Live now
-            </h2>
-            <span className="kpi">{liveCount} match{liveCount === 1 ? "" : "es"} trading right now</span>
-          </header>
-          <div className="fixture-grid">
-            {liveFixtures.map((fixture) => (
-              <FixtureRow key={fixture.id} fixture={fixture} hasMatchWinner={fixture.hasMatchWinner} hasExactScore={fixture.hasExactScore} />
-            ))}
-          </div>
-        </section>
-      ) : null}
+      <section className="market-layout" aria-label="Prediction market overview">
+        <div className="market-main">
+          {liveCount > 0 ? (
+            <section className="schedule-date-group" id="live">
+              <header className="schedule-date-header is-live">
+                <h2>
+                  <span className="schedule-date-live-dot" aria-hidden />
+                  Live now
+                </h2>
+                <span className="kpi">{liveCount} match{liveCount === 1 ? "" : "es"} trading right now</span>
+              </header>
+              <div className="fixture-grid">
+                {liveFixtures.map((fixture) => (
+                  <FixtureRow key={fixture.id} fixture={fixture} hasMatchWinner={fixture.hasMatchWinner} hasExactScore={fixture.hasExactScore} />
+                ))}
+              </div>
+            </section>
+          ) : null}
 
-      {groups.map((group) => (
-        <section className="schedule-date-group" key={group.dateKey} id={`day-${group.dateKey}`}>
-          <header className="schedule-date-header">
-            <h2>
-              {group.label}
-              <small>{group.sublabel}</small>
-            </h2>
-            <span className="kpi">{group.items.length} match{group.items.length === 1 ? "" : "es"}</span>
-          </header>
-          <div className="fixture-grid">
-            {group.items.map((fixture) => (
-              <FixtureRow key={fixture.id} fixture={fixture} hasMatchWinner={fixture.hasMatchWinner} hasExactScore={fixture.hasExactScore} />
-            ))}
-          </div>
-        </section>
-      ))}
+          {groups.map((group) => (
+            <section className="schedule-date-group" key={group.dateKey} id={`day-${group.dateKey}`}>
+              <header className="schedule-date-header">
+                <h2>
+                  {group.label}
+                  <small>{group.sublabel}</small>
+                </h2>
+                <span className="kpi">{group.items.length} match{group.items.length === 1 ? "" : "es"}</span>
+              </header>
+              <div className="fixture-grid">
+                {group.items.map((fixture) => (
+                  <FixtureRow key={fixture.id} fixture={fixture} hasMatchWinner={fixture.hasMatchWinner} hasExactScore={fixture.hasExactScore} />
+                ))}
+              </div>
+            </section>
+          ))}
 
-      {!loadError && totalCount === 0 ? (
-        <EmptyState
-          icon="🗓"
-          title="Schedule not bootstrapped yet"
-          description="Once the operator seeds the World Cup 2026 fixtures you'll see them here grouped by day."
+          {!loadError && totalCount === 0 ? (
+            <EmptyState
+              icon="🗓"
+              title="Schedule not bootstrapped yet"
+              description="Once the operator seeds the World Cup 2026 fixtures you'll see them here grouped by day."
+            />
+          ) : null}
+        </div>
+
+        <InsightRail 
+          balance="$12,480.50"
+          trending={trendingItems}
+          momentum={liveCount > 0 ? {
+            label: `${liveFixtures[0]?.homeTeam} yes`,
+            change: "+8%",
+            positive: true,
+            bars: [28, 45, 38, 72, 64, 84],
+          } : undefined}
+          showWallet={true}
         />
-      ) : null}
+      </section>
     </main>
   );
 }
